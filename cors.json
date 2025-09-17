@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["http://localhost:5173", "https://bikeshop-ab2f0.web.app", "https://bikeshop-ab2f0.firebaseapp.com"],
+    "method": ["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS"],
+    "responseHeader": ["Content-Type", "Authorization"],
+    "maxAgeSeconds": 3600
+  }
+]
