@@ -1,6 +1,8 @@
 // pages/admin/Orders.jsx
 import { useEffect, useMemo, useState } from "react";
+import { FirebaseError } from "firebase/app";
 import { listOrders, updateOrderStatus } from "../../services/orders";
+import { useAuth } from "../../auth/AuthContext";
 
 function money(n){ return Number(n||0).toLocaleString("es-AR",{style:"currency",currency:"ARS"}); }
 
@@ -12,6 +14,8 @@ export default function Orders(){
   const [rows,setRows]=useState([]);             // 🔹 órdenes reales
   const [loading,setLoading]=useState(true);
   const [cursor,setCursor]=useState(null);
+  const [actionError, setActionError] = useState("");
+  const { loading: authLoading } = useAuth();
 
   async function fetchOrders(reset=true){
     setLoading(true);
@@ -30,8 +34,8 @@ export default function Orders(){
       setLoading(false);
     }
   }
-
-  useEffect(()=>{ fetchOrders(true); /* eslint-disable-next-line */ },[status,from,to]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(()=>{ fetchOrders(true); },[status,from,to]);
 
   // Filtro por texto local (id o nombre cliente)
   const filtered = useMemo(()=>{
@@ -47,12 +51,32 @@ export default function Orders(){
   const total = useMemo(()=> filtered.reduce((a,b)=>a+Number(b.total||0),0),[filtered]);
 
   async function markPaid(id){
-    await updateOrderStatus(id, "pagada");
-    setRows(prev => prev.map(o => o.id===id ? {...o, status:"pagada"} : o));
+    setActionError("");
+    try {
+      await updateOrderStatus(id, "pagada");
+      setRows(prev => prev.map(o => o.id===id ? {...o, status:"pagada"} : o));
+    } catch (e) {
+      console.error(e);
+      if (e instanceof FirebaseError) {
+        setActionError("Necesitás permisos de administrador");
+      } else {
+        setActionError("No se pudo actualizar la orden.");
+      }
+    }
   }
   async function cancel(id){
-    await updateOrderStatus(id, "cancelada");
-    setRows(prev => prev.map(o => o.id===id ? {...o, status:"cancelada"} : o));
+    setActionError("");
+    try {
+      await updateOrderStatus(id, "cancelada");
+      setRows(prev => prev.map(o => o.id===id ? {...o, status:"cancelada"} : o));
+    } catch (e) {
+      console.error(e);
+      if (e instanceof FirebaseError) {
+        setActionError("Necesitás permisos de administrador");
+      } else {
+        setActionError("No se pudo actualizar la orden.");
+      }
+    }
   }
 
   return (
@@ -90,6 +114,12 @@ export default function Orders(){
         </div>
       </div>
 
+      {actionError && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+          {actionError}
+        </div>
+      )}
+
       <div className="overflow-x-auto rounded-2xl border bg-white shadow-sm">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 text-slate-700">
@@ -125,13 +155,15 @@ export default function Orders(){
                   <div className="flex justify-end gap-2">
                     {o.status!=="pagada" && (
                       <button onClick={()=>markPaid(o.id)}
-                              className="rounded-xl border px-3 py-1 hover:bg-slate-50">
+                              disabled={authLoading}
+                              className="rounded-xl border px-3 py-1 hover:bg-slate-50 disabled:opacity-50">
                         Marcar pagada
                       </button>
                     )}
                     {o.status!=="cancelada" && (
                       <button onClick={()=>cancel(o.id)}
-                              className="rounded-xl border px-3 py-1 hover:bg-slate-50">
+                              disabled={authLoading}
+                              className="rounded-xl border px-3 py-1 hover:bg-slate-50 disabled:opacity-50">
                         Cancelar
                       </button>
                     )}
