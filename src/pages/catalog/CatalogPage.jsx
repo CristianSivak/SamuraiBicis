@@ -51,6 +51,30 @@ export default function CatalogPage({ isLoggedIn = false }) {
     })();
   }, []);
 
+  useEffect(() => {
+    setCart((prev) => {
+      let changed = false;
+      const next = [];
+      for (const item of prev) {
+        const product = items.find((p) => p.id === item.id);
+        const stock = Number(product?.stock ?? 0);
+        if (!product || stock <= 0) {
+          changed = true;
+          continue;
+        }
+        const clampedQty = Math.min(item.qty, stock);
+        if (clampedQty !== item.qty) {
+          changed = true;
+          next.push({ ...item, qty: clampedQty });
+        } else {
+          next.push(item);
+        }
+      }
+      if (!changed && next.length === prev.length) return prev;
+      return next;
+    });
+  }, [items]);
+
   // categorías dinámicas desde productos
   const categories = useMemo(() => {
     const set = new Set(items.map((p) => p.category || "general"));
@@ -109,13 +133,24 @@ export default function CatalogPage({ isLoggedIn = false }) {
 
   // carrito
   const addToCart = (p) => {
+    const availableStock = Number(p?.stock ?? 0);
+    if (availableStock <= 0) {
+      alert("No hay stock disponible para este producto.");
+      return;
+    }
     setCartOpen(true);
     setCart((prev) => {
-      const i = prev.findIndex((x) => x.id === p.id);
-      if (i >= 0) {
-        const next = [...prev];
-        next[i] = { ...next[i], qty: Math.min(999, next[i].qty + 1) };
-        return next;
+      const existing = prev.find((x) => x.id === p.id);
+      if (existing) {
+        if (existing.qty >= availableStock) {
+          alert("Alcanzaste el stock disponible de este producto.");
+          return prev;
+        }
+        return prev.map((x) =>
+          x.id === p.id
+            ? { ...x, qty: Math.min(availableStock, x.qty + 1) }
+            : x
+        );
       }
       return [
         ...prev,
@@ -131,11 +166,15 @@ export default function CatalogPage({ isLoggedIn = false }) {
   };
 
   const setQty = (id, qty) =>
-    setCart((prev) =>
-      prev
-        .map((x) => (x.id === id ? { ...x, qty: Math.max(1, Math.min(999, qty)) } : x))
-        .filter((x) => x.qty > 0)
-    );
+    setCart((prev) => {
+      const product = items.find((p) => p.id === id);
+      const maxQty = Number(product?.stock ?? 0);
+      if (!product || maxQty <= 0) {
+        return prev.filter((x) => x.id !== id);
+      }
+      const nextQty = Math.max(1, Math.min(maxQty, Number(qty || 1)));
+      return prev.map((x) => (x.id === id ? { ...x, qty: nextQty } : x));
+    });
   const removeFromCart = (id) => setCart((prev) => prev.filter((x) => x.id !== id));
   const clearCart = () => setCart([]);
 
@@ -145,13 +184,52 @@ export default function CatalogPage({ isLoggedIn = false }) {
   );
 
   async function submitOrder(data) {
+    const { paymentMethod, ...customer } = data;
+    setOrderResult(null);
+
+    if (!cart.length) {
+      setOrderResult({ ok: false, error: "Tu carrito está vacío." });
+      return;
+    }
+
+    if (!paymentMethod) {
+      setOrderResult({ ok: false, error: "Seleccioná un método de pago." });
+      return;
+    }
+
+    const orderItems = cart.map(({ id, name, price, qty }) => ({ id, name, price, qty }));
+    const shortages = orderItems.filter((item) => {
+      const product = items.find((p) => p.id === item.id);
+      const available = Number(product?.stock ?? 0);
+      return !product || available < item.qty;
+    });
+
+    if (shortages.length) {
+      const names = shortages.map((it) => it.name).join(", ");
+      setOrderResult({
+        ok: false,
+        error: `No hay stock suficiente para: ${names}. Actualizá las cantidades antes de continuar.`,
+      });
+      return;
+    }
+
     try {
       setOrderSubmitting(true);
       const orderId = await createOrder({
-        customer: data, // {name,email,phone,notes}
-        items: cart.map(({ id, name, price, qty }) => ({ id, name, price, qty })),
+        customer,
+        items: orderItems,
+        paymentMethod,
       });
       setOrderResult({ ok: true, orderId });
+      setItems((prev) =>
+        prev.map((product) => {
+          const match = orderItems.find((it) => it.id === product.id);
+          if (!match) return product;
+          const currentStock = Number(product?.stock ?? 0);
+          const nextStock = Math.max(0, currentStock - match.qty);
+          return { ...product, stock: nextStock };
+        })
+      );
       clearCart();
     } catch (e) {
       console.error(e);
@@ -261,10 +339,20 @@ export default function CatalogPage({ isLoggedIn = false }) {
         total={cartTotal}
         isLoggedIn={isLoggedIn}
         onCheckout={() => {
+          const hasIssues = cart.some((item) => {
+            const product = items.find((p) => p.id === item.id);
+            const available = Number(product?.stock ?? 0);
+            return !product || available < item.qty;
+          });
+          if (hasIssues) {
+            alert("Actualizá las cantidades: no hay stock suficiente para continuar.");
+            return;
+          }
           setCartOpen(false);
           setOrderOpen(true);
           setOrderResult(null);
         }}
+        products={items}
       />
 
       {/* Modal pedido */}
@@ -468,7 +556,14 @@ function ProductCard({ product, onAdd }) {
 
 /* ========== Carrito + Pedido ========== */
 
-function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn, onCheckout }) {
+function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn, onCheckout, products = [] }) {
+  const getAvailable = (id) => {
+    const product = products.find((p) => p.id === id);
+    return Number(product?.stock ?? 0);
+  };
+  const stockProblems = cart.filter((it) => getAvailable(it.id) < it.qty);
+  const checkoutDisabled = !cart.length || stockProblems.length > 0;
+  
   return (
     <div className={`fixed inset-0 z-50 ${open ? "" : "pointer-events-none"}`}>
       <div
@@ -491,34 +586,56 @@ function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn
         ) : (
           <>
             <ul className="mt-4 space-y-3 max-h-[60vh] overflow-auto pr-1">
-              {cart.map((it) => (
-                <li key={it.id} className="flex items-center gap-3 rounded-xl border p-3">
-                  <div className="h-14 w-14 rounded-lg bg-gray-100 overflow-hidden">
-                    {it.imageUrl ? (
-                      <img src={it.imageUrl} className="h-full w-full object-cover" alt="" />
-                    ) : null}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{it.name}</div>
-                    <div className="text-xs text-gray-600">{money(it.price)} c/u</div>
-                    <div className="mt-2 inline-flex items-center gap-2">
-                      <button className="rounded-lg border px-2" onClick={() => setQty(it.id, it.qty - 1)}>-</button>
-                      <input
-                        className="w-12 rounded-lg border px-2 text-center text-sm"
-                        type="number"
-                        min={1}
-                        max={999}
-                        value={it.qty}
-                        onChange={(e) => setQty(it.id, Number(e.target.value || 1))}
-                      />
-                      <button className="rounded-lg border px-2" onClick={() => setQty(it.id, it.qty + 1)}>+</button>
+              {cart.map((it) => {
+                const availableStock = getAvailable(it.id);
+                const disableDecrease = it.qty <= 1;
+                const disableIncrease = availableStock > 0 ? it.qty >= availableStock : true;
+                return (
+                  <li key={it.id} className="flex items-center gap-3 rounded-xl border p-3">
+                    <div className="h-14 w-14 rounded-lg bg-gray-100 overflow-hidden">
+                      {it.imageUrl ? (
+                        <img src={it.imageUrl} className="h-full w-full object-cover" alt="" />
+                      ) : null}
                     </div>
-                  </div>
-                  <button className="rounded-lg border px-3 py-1 text-xs" onClick={() => removeItem(it.id)}>
-                    Quitar
-                  </button>
-                </li>
-              ))}
+                                      <div className="flex-1">
+                      <div className="text-sm font-medium">{it.name}</div>
+                      <div className="text-xs text-gray-600">{money(it.price)} c/u</div>
+                      <div className="mt-2 inline-flex items-center gap-2">
+                        <button
+                          className="rounded-lg border px-2 disabled:opacity-50"
+                          onClick={() => setQty(it.id, it.qty - 1)}
+                          disabled={disableDecrease}
+                        >
+                          -
+                        </button>
+                        <input
+                          className="w-12 rounded-lg border px-2 text-center text-sm"
+                          type="number"
+                          min={1}
+                          max={availableStock || 1}
+                          value={it.qty}
+                          onChange={(e) => setQty(it.id, Number(e.target.value || 1))}
+                        />
+                        <button
+                          className="rounded-lg border px-2 disabled:opacity-50"
+                          onClick={() => setQty(it.id, it.qty + 1)}
+                          disabled={disableIncrease}
+                        >
+                          +
+                        </button>
+                      </div>
+                      {availableStock < it.qty && (
+                        <p className="mt-1 text-xs text-rose-600">
+                          Disponible: {availableStock}
+                        </p>
+                      )}
+                    </div>
+                    <button className="rounded-lg border px-3 py-1 text-xs" onClick={() => removeItem(it.id)}>
+                      Quitar
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
 
             <div className="mt-4 flex items-center justify-between">
@@ -526,9 +643,20 @@ function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn
               <div className="text-base font-semibold">{money(total)}</div>
             </div>
 
+              {stockProblems.length > 0 && (
+              <p className="mt-2 text-xs text-rose-600">
+                Actualizá las cantidades: sin stock suficiente.
+              </p>
+            )}
+
             <button
               onClick={onCheckout}
-              className="mt-3 w-full rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900"
+              disabled={checkoutDisabled}
+              className={`mt-3 w-full rounded-xl px-4 py-2 text-sm font-semibold ${
+                checkoutDisabled
+                  ? "cursor-not-allowed bg-gray-200 text-gray-500"
+                  : "bg-black text-white hover:bg-gray-900"
+              }`}
             >
               Finalizar pedido
             </button>
@@ -550,10 +678,11 @@ function OrderModal({ open, onClose, submitting, result, onSubmit }) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
 
   useEffect(() => {
     if (!open) {
-      setName(""); setEmail(""); setPhone(""); setNotes("");
+      setName(""); setEmail(""); setPhone(""); setNotes(""); setPaymentMethod("");
     }
   }, [open]);
 
@@ -589,7 +718,7 @@ function OrderModal({ open, onClose, submitting, result, onSubmit }) {
             className="mt-4 space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
-              onSubmit({ name, email, phone, notes });
+              onSubmit({ name, email, phone, notes, paymentMethod });
             }}
           >
             <div>
@@ -614,11 +743,37 @@ function OrderModal({ open, onClose, submitting, result, onSubmit }) {
               <textarea rows={3} className="w-full rounded-xl border px-3 py-2 text-sm"
                         value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
+            <fieldset>
+              <legend className="block text-sm mb-2">Método de pago</legend>
+              <div className="space-y-2 text-sm text-gray-700">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="cheque"
+                    checked={paymentMethod === "cheque"}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    required
+                  />
+                  Cheque
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="transferencia"
+                    checked={paymentMethod === "transferencia"}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                  />
+                  Transferencia
+                </label>
+              </div>
+            </fieldset>
             <div className="flex justify-end gap-2">
               <button type="button" onClick={onClose} className="rounded-xl border px-4 py-2 text-sm hover:bg-gray-50">
                 Cancelar
               </button>
-              <button disabled={submitting}
+              <button disabled={submitting || !paymentMethod}
                       className="rounded-xl bg-black text-white px-4 py-2 text-sm hover:bg-gray-900 disabled:opacity-50">
                 {submitting ? "Enviando…" : "Enviar pedido"}
               </button>

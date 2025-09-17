@@ -1,7 +1,7 @@
 import {
   collection, addDoc, updateDoc, deleteDoc, doc,
   serverTimestamp, query, orderBy, limit, getDocs,
-  where, startAfter, QueryDocumentSnapshot, DocumentData
+  where, startAfter, QueryDocumentSnapshot, DocumentData, onSnapshot
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../firebase"; // 👈 asegurate que exista src/firebase.ts|js con {db,storage}
@@ -116,4 +116,36 @@ export async function listProducts({
   const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
   const nextCursor = snap.docs.length ? snap.docs[snap.docs.length - 1] : null;
   return { items, nextCursor };
+}
+
+export function subscribeProducts({
+  q = "", onlyActive = "all", category = "all", pageSize = 20,
+}: {
+  q?: string;
+  onlyActive?: "all" | "true" | "false";
+  category?: string;
+  pageSize?: number;
+} = {},
+onChange: (items: Product[]) => void,
+onError?: (error: Error) => void,
+) {
+  const nq = normalize(q);
+  const clauses: any[] = [];
+  if (nq) {
+    clauses.push(where("nameLower", ">=", nq));
+    clauses.push(where("nameLower", "<=", nq + "\uf8ff"));
+  }
+  if (onlyActive === "true") clauses.push(where("active", "==", true));
+  if (category !== "all")    clauses.push(where("category", "==", category));
+
+  const baseQ = query(colRef, ...clauses, orderBy("nameLower"), limit(pageSize));
+
+  return onSnapshot(
+    baseQ,
+    snap => {
+      const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+      onChange(items);
+    },
+    onError,
+  );
 }

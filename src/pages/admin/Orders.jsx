@@ -44,7 +44,10 @@ export default function Orders(){
       const idText = String(o.id).toLowerCase().includes(query);
       const nameText = String(o.customerNameLower || o.customer?.name || "")
                         .toLowerCase().includes(query);
-      return idText || nameText;
+      const emailText = String(o.customer?.email || "").toLowerCase().includes(query);
+      const phoneText = String(o.customer?.phone || "").toLowerCase().includes(query);
+      const notesText = String(o.customer?.notes || "").toLowerCase().includes(query);
+      return idText || nameText || emailText || phoneText || notesText;
     });
   },[rows,q]);
 
@@ -69,6 +72,21 @@ export default function Orders(){
     try {
       await updateOrderStatus(id, "cancelada");
       setRows(prev => prev.map(o => o.id===id ? {...o, status:"cancelada"} : o));
+    } catch (e) {
+      console.error(e);
+      if (e instanceof FirebaseError) {
+        setActionError("Necesitás permisos de administrador");
+      } else {
+        setActionError("No se pudo actualizar la orden.");
+      }
+    }
+  }
+
+  async function reactivate(id){
+    setActionError("");
+    try {
+      await updateOrderStatus(id, "pendiente");
+      setRows(prev => prev.map(o => o.id===id ? {...o, status:"pendiente"} : o));
     } catch (e) {
       console.error(e);
       if (e instanceof FirebaseError) {
@@ -126,8 +144,12 @@ export default function Orders(){
             <tr>
               <th className="px-4 py-3 text-left"># Orden</th>
               <th className="px-4 py-3 text-left">Cliente</th>
+              <th className="px-4 py-3 text-left">Email</th>
+              <th className="px-4 py-3 text-left">Teléfono</th>
+              <th className="px-4 py-3 text-left">Comentario</th>
               <th className="px-4 py-3 text-left">Fecha</th>
               <th className="px-4 py-3 text-left">Estado</th>
+              <th className="px-4 py-3 text-left">Método de pago</th>
               <th className="px-4 py-3 text-right">Total</th>
               <th className="px-4 py-3 text-right">Acciones</th>
             </tr>
@@ -137,6 +159,9 @@ export default function Orders(){
               <tr key={o.id} className="border-t">
                 <td className="px-4 py-3 font-mono break-all">#{o.id}</td>
                 <td className="px-4 py-3">{o.customer?.name || "-"}</td>
+                <td className="px-4 py-3">{o.customer?.email || "-"}</td>
+                <td className="px-4 py-3">{o.customer?.phone || "-"}</td>
+                <td className="px-4 py-3 max-w-[240px] break-words">{o.customer?.notes || "-"}</td>
                 <td className="px-4 py-3">
                   {o.createdAt?.toDate ? o.createdAt.toDate().toLocaleString("es-AR")
                                        : "-"}
@@ -150,10 +175,11 @@ export default function Orders(){
                      "bg-rose-100 text-rose-700")
                   }>{o.status}</span>
                 </td>
+                <td className="px-4 py-3 capitalize">{o.paymentMethod || "-"}</td>
                 <td className="px-4 py-3 text-right">{money(o.total||0)}</td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-2">
-                    {o.status!=="pagada" && (
+                    {o.status!=="pagada" && o.status!=="cancelada" && (
                       <button onClick={()=>markPaid(o.id)}
                               disabled={authLoading}
                               className="rounded-xl border px-3 py-1 hover:bg-slate-50 disabled:opacity-50">
@@ -167,12 +193,19 @@ export default function Orders(){
                         Cancelar
                       </button>
                     )}
+                    {o.status==="cancelada" && (
+                      <button onClick={()=>reactivate(o.id)}
+                              disabled={authLoading}
+                              className="rounded-xl border px-3 py-1 hover:bg-slate-50 disabled:opacity-50">
+                        Reactivar
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
             ))}
             {filtered.length===0 && (
-              <tr><td className="px-4 py-10 text-center text-slate-500" colSpan={6}>
+              <tr><td className="px-4 py-10 text-center text-slate-500" colSpan={10}>
                 {loading? "Cargando órdenes…" : "Sin resultados."}
               </td></tr>
             )}

@@ -1,7 +1,7 @@
 // src/services/orders.ts
 import {
-  addDoc, collection, doc, getDocs, limit, orderBy, query,
-  serverTimestamp, Timestamp, updateDoc, where, startAfter, QueryDocumentSnapshot, DocumentData
+  collection, doc, getDocs, limit, orderBy, query,
+  serverTimestamp, Timestamp, updateDoc, where, startAfter, QueryDocumentSnapshot, DocumentData, runTransaction
 } from "firebase/firestore";
 import { auth } from "../firebase";
 import { db } from "../firebase";
@@ -16,9 +16,11 @@ function sum(items: OrderItem[]) {
   return items.reduce((acc, it) => acc + Number(it.price || 0) * Number(it.qty || 0), 0);
 }
 
+export type PaymentMethod = "cheque" | "transferencia";
+
 export async function createOrder({
-  customer, items
-}: { customer: Customer; items: OrderItem[]; }): Promise<string> {
+  customer, items, paymentMethod
+}: { customer: Customer; items: OrderItem[]; paymentMethod: PaymentMethod; }): Promise<string> {
   // Esperar resolución de sesión (puede ser null si huésped)
   const user = auth.currentUser ?? await authReady();
 
@@ -30,6 +32,10 @@ export async function createOrder({
   })).filter(it => it.id && it.name && it.qty > 0);
 
   if (!cleanItems.length) throw new Error("Carrito vacío.");
+
+  if (!paymentMethod || !["cheque", "transferencia"].includes(paymentMethod)) {
+    throw new Error("Seleccioná un método de pago válido.");
+  }
 
   const now = serverTimestamp();
 
@@ -49,10 +55,34 @@ export async function createOrder({
     items: cleanItems,
     // Si está logueado envío el total; huéspedes mandan 0 (las reglas lo exigen)
     total: user ? sum(cleanItems) : 0,
+    paymentMethod,
   };
 
-  const docRef = await addDoc(ORDERS, payload);
-  return docRef.id;
+  const orderId = await runTransaction(db, async (tx) => {
+    const orderRef = doc(ORDERS);
+
+    for (const item of cleanItems) {
+      const productRef = doc(db, "products", item.id);
+      const snap = await tx.get(productRef);
+      if (!snap.exists()) {
+        throw new Error(`El producto "${item.name}" ya no está disponible.`);
+      }
+      const data = snap.data();
+      const currentStock = Number(data?.stock ?? 0);
+      if (currentStock < item.qty) {
+        throw new Error(`No hay stock suficiente para "${item.name}".`);
+      }
+      tx.update(productRef, {
+        stock: currentStock - item.qty,
+        updatedAt: serverTimestamp(),
+      });
+    }
+
+    tx.set(orderRef, payload);
+    return orderRef.id;
+  });
+
+  return orderId;
 }
 
 export type ListOrdersParams = {

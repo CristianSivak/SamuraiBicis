@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import ProductForm from "../../components/admin/ProductForm";
 import {
-  listProducts, createProduct, updateProduct, deleteProductById
+  createProduct, updateProduct, deleteProductById, subscribeProducts
 } from "../../services/products";
 
 function money(n){ return Number(n||0).toLocaleString("es-AR",{style:"currency",currency:"ARS"}); }
@@ -15,13 +15,19 @@ export default function Products(){
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
 
-  // carga inicial
-  useEffect(() => { (async ()=>{
+  // carga inicial + actualizaciones en tiempo real
+  useEffect(() => {
     setLoading(true);
-    const { items } = await listProducts({ q: "", onlyActive: "all", category: "all", pageSize: 50 });
-    setRows(items);
-    setLoading(false);
-  })(); }, []);
+  const unsubscribe = subscribeProducts(
+      { q: "", onlyActive: "all", category: "all", pageSize: 50 },
+      items => {
+        setRows(items);
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
+    return () => unsubscribe();
+  }, []);
 
   // filtro rápido en cliente (además del server-side en listProducts si usás q/onlyActive/category)
   const filtered = useMemo(()=>{
@@ -37,9 +43,6 @@ export default function Products(){
   async function handleCreate(payload){
     setLoading(true);
     await createProduct(payload);
-    // refresco rápido
-    const { items } = await listProducts({ q: "", onlyActive: "all", category: "all", pageSize: 50 });
-    setRows(items);
     setLoading(false);
     setModalOpen(false);
   }
@@ -47,8 +50,6 @@ export default function Products(){
   async function handleUpdate(payload){
     setLoading(true);
     await updateProduct(editing.id, payload);
-    const { items } = await listProducts({ q: "", onlyActive: "all", category: "all", pageSize: 50 });
-    setRows(items);
     setLoading(false);
     setEditing(null);
   }
@@ -57,7 +58,6 @@ export default function Products(){
     if (!confirm("¿Eliminar este producto?")) return;
     setLoading(true);
     await deleteProductById(id);
-    setRows(prev => prev.filter(p => p.id !== id));
     setLoading(false);
   }
 
