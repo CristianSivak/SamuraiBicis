@@ -14,7 +14,7 @@ export default function VideoHero({ videoId = "sChZ-IOIWOA", height = "h-[80vh]"
   console.log("VideoSection render", videoId);
   return (
     <section className={`relative w-full overflow-hidden ${height}`}>
-      {/* 
+      {
       <div className="absolute inset-0">
         <iframe
           src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&modestbranding=1&showinfo=0&rel=0`}
@@ -25,7 +25,7 @@ export default function VideoHero({ videoId = "sChZ-IOIWOA", height = "h-[80vh]"
           className="absolute inset-0 h-full w-full object-cover"
         ></iframe>
       </div>
-       */}
+       }
 
       {/* Overlay oscuro opcional para contraste */}
       <div className="absolute inset-0 bg-black/40" />
