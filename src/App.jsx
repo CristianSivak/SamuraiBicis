@@ -1,5 +1,6 @@
 // src/App.jsx
 import { Switch, Route } from 'react-router-dom'
+import ProtectedRoute from "./routes/ProtectedRoute";
 import Layout from './components/layout/Layout';
 import AdminLayout from './components/layout/AdminLayout'
 
@@ -21,7 +22,7 @@ export default function App() {
   return (
     <Switch>
       {/* Bloque ADMIN con su layout */}
-      <Route
+      <ProtectedRoute
         path="/admin"
         render={() => (
           <AdminLayout>

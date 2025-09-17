@@ -8,19 +8,21 @@ const items = [
 ];
 
 export default function AdminSidebar({ collapsed, onToggle }) {
-  const Item = ({ to, label, icon: Icon, exact }) => (
-    <NavLink
-      exact={!!exact}
-      to={to}
-      title={collapsed ? label : undefined}
-      className="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
-      activeClassName="bg-slate-200 text-slate-900"
-    >
-      <Icon className="h-5 w-5 shrink-0 text-slate-500 group-hover:text-slate-700" />
-      {!collapsed && <span className="truncate">{label}</span>}
-    </NavLink>
-  );
-
+  const Item = ({ to, label, icon, exact }) => {
+    const Icon = icon;
+    return (
+      <NavLink
+        exact={!!exact}
+        to={to}
+        title={collapsed ? label : undefined}
+        className="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+        activeClassName="bg-slate-200 text-slate-900"
+      >
+        <Icon className="h-5 w-5 shrink-0 text-slate-500 group-hover:text-slate-700" />
+        {!collapsed && <span className="truncate">{label}</span>}
+      </NavLink>
+    );
+  };
   return (
     <div className="h-full flex flex-col">
       <div className="h-16 flex items-center justify-between px-3 border-b">
