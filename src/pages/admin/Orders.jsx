@@ -5,10 +5,10 @@ import { useAuth } from "../../auth/AuthContext";
 import { BusyButtonContent, LoadingOverlay } from "../../components/ui/LoadingIndicators";
 
 const statusStyles = {
-  pagada: "border border-emerald-400/40 bg-emerald-500/15 text-emerald-200",
-  pendiente: "border border-amber-400/40 bg-amber-500/15 text-amber-200",
-  cancelada: "border border-rose-400/40 bg-rose-500/15 text-rose-200",
-  solicitud: "border border-sky-400/40 bg-sky-500/15 text-sky-200",
+  pagada: "border border-emerald-200 bg-emerald-50 text-emerald-700",
+  pendiente: "border border-amber-200 bg-amber-50 text-amber-700",
+  cancelada: "border border-rose-200 bg-rose-50 text-rose-700",
+  solicitud: "border border-sky-200 bg-sky-50 text-sky-700",
 };
 
 function money(n) {
@@ -110,36 +110,36 @@ export default function Orders() {
 
   return (
     <div className="space-y-8">
-      <section className="relative overflow-hidden rounded-3xl border border-slate-800/70 bg-slate-900/40 p-8 shadow-[0_45px_80px_-50px_rgba(15,23,42,0.95)]">
-        <div className="absolute -right-24 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full bg-indigo-500/25 blur-3xl" />
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_45px_85px_-60px_rgba(15,23,42,0.35)]">
+        <div className="absolute -right-24 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full bg-indigo-200/60 blur-3xl" />
         <div className="relative space-y-5">
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-800/60 bg-slate-900/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-slate-300">
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs uppercase tracking-[0.3em] text-slate-500 shadow-sm">
             Gestión de órdenes
           </div>
           <div className="grid gap-6 lg:grid-cols-[2fr_1fr] lg:items-center">
             <div>
-              <h1 className="text-3xl font-semibold text-white">Órdenes</h1>
-              <p className="mt-3 text-sm text-slate-300">
+              <h1 className="text-3xl font-semibold text-slate-900">Órdenes</h1>
+              <p className="mt-3 text-sm text-slate-600">
                 Controlá el flujo de pedidos con filtros dinámicos y loaders visibles para cada sincronización.
               </p>
             </div>
-            <div className="rounded-2xl border border-slate-800/60 bg-slate-900/60 px-4 py-3 text-sm text-slate-300">
-              Total filtrado: <span className="font-semibold text-white">{money(total)}</span>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              Total filtrado: <span className="font-semibold text-slate-900">{money(total)}</span>
             </div>
           </div>
         </div>
       </section>
 
-      <div className="rounded-3xl border border-slate-800/70 bg-slate-900/40 p-6 shadow-[0_35px_65px_-45px_rgba(15,23,42,0.9)]">
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_35px_65px_-45px_rgba(15,23,42,0.35)]">
         <div className="grid gap-4 md:grid-cols-5">
           <input
-            className="rounded-2xl border border-slate-800/70 bg-slate-900/60 px-4 py-2 text-sm text-slate-100 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40 md:col-span-2"
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-400/40 md:col-span-2"
             placeholder="Buscar por #orden o cliente…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
           <select
-            className="rounded-2xl border border-slate-800/70 bg-slate-900/60 px-4 py-2 text-sm text-slate-100 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-400/40"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
           >
@@ -151,13 +151,13 @@ export default function Orders() {
           </select>
           <input
             type="date"
-            className="rounded-2xl border border-slate-800/70 bg-slate-900/60 px-4 py-2 text-sm text-slate-100 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-400/40"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
           />
           <input
             type="date"
-            className="rounded-2xl border border-slate-800/70 bg-slate-900/60 px-4 py-2 text-sm text-slate-100 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-400/40"
             value={to}
             onChange={(e) => setTo(e.target.value)}
           />
@@ -166,7 +166,7 @@ export default function Orders() {
           <button
             onClick={() => fetchOrders(false)}
             disabled={!cursor || loading}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-800/70 bg-slate-900/60 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-sky-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:border-sky-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <BusyButtonContent busy={loading} busyLabel="Cargando…" label="Cargar más" />
           </button>
@@ -174,21 +174,21 @@ export default function Orders() {
       </div>
 
       {actionError && (
-        <div className="rounded-3xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {actionError}
         </div>
       )}
 
-      <div className="relative overflow-hidden rounded-3xl border border-slate-800/70 bg-slate-900/40 shadow-[0_40px_70px_-45px_rgba(15,23,42,0.9)]">
+      <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_40px_80px_-60px_rgba(15,23,42,0.35)]">
         {loading && (
           <LoadingOverlay
             label="Actualizando listado…"
-            className="rounded-[inherit] border border-slate-800/70 bg-slate-950/80 text-slate-200"
-            labelClassName="text-slate-200"
+            className="rounded-[inherit] border border-slate-200 bg-white/80 text-slate-600"
+            labelClassName="text-slate-600"
           />
         )}
-        <table className="min-w-full divide-y divide-slate-800/70 text-sm text-slate-200">
-          <thead className="bg-slate-900/80 text-slate-300">
+        <table className="min-w-full divide-y divide-slate-200 text-sm text-slate-600">
+          <thead className="bg-slate-50 text-slate-500">
             <tr>
               <th className="px-4 py-3 text-left"># Orden</th>
               <th className="px-4 py-3 text-left">Cliente</th>
@@ -202,36 +202,36 @@ export default function Orders() {
               <th className="px-4 py-3 text-right">Acciones</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60">
+          <tbody className="divide-y divide-slate-200">
             {filtered.map((o) => (
               <tr key={o.id}>
-                <td className="px-4 py-4 font-mono text-xs text-slate-400">#{o.id}</td>
+                <td className="px-4 py-4 font-mono text-xs text-slate-500">#{o.id}</td>
                 <td className="px-4 py-4">{o.customer?.name || "-"}</td>
                 <td className="px-4 py-4">{o.customer?.email || "-"}</td>
                 <td className="px-4 py-4">{o.customer?.phone || "-"}</td>
-                <td className="px-4 py-4 max-w-[240px] break-words text-slate-300">{o.customer?.notes || "-"}</td>
-                <td className="px-4 py-4 text-slate-300">
+                <td className="px-4 py-4 max-w-[240px] break-words text-slate-500">{o.customer?.notes || "-"}</td>
+                <td className="px-4 py-4 text-slate-500">
                   {o.createdAt?.toDate ? o.createdAt.toDate().toLocaleString("es-AR") : "-"}
                 </td>
                 <td className="px-4 py-4">
                   <span
                     className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ${
-                      statusStyles[o.status] || "border border-slate-700 bg-slate-900/60 text-slate-300"
+                      statusStyles[o.status] || "border border-slate-200 bg-slate-50 text-slate-600"
                     }`}
                   >
-                    <span className="h-2 w-2 rounded-full bg-current" />
+                    <span className="h-2 w-2 rounded-full bg-current/80" />
                     {o.status}
                   </span>
                 </td>
                 <td className="px-4 py-4 capitalize">{o.paymentMethod || "-"}</td>
-                <td className="px-4 py-4 text-right font-semibold text-white">{money(o.total || 0)}</td>
+                <td className="px-4 py-4 text-right font-semibold text-slate-900">{money(o.total || 0)}</td>
                 <td className="px-4 py-4">
                   <div className="flex justify-end gap-2">
                     {o.status !== "pagada" && o.status !== "cancelada" && (
                       <button
                         onClick={() => markPaid(o.id)}
                         disabled={authLoading}
-                        className="rounded-2xl border border-slate-800/70 bg-slate-900/60 px-3 py-1 text-xs text-slate-200 transition hover:border-emerald-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Marcar pagada
                       </button>
@@ -240,7 +240,7 @@ export default function Orders() {
                       <button
                         onClick={() => cancel(o.id)}
                         disabled={authLoading}
-                        className="rounded-2xl border border-slate-800/70 bg-slate-900/60 px-3 py-1 text-xs text-slate-200 transition hover:border-rose-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-1 text-xs text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Cancelar
                       </button>
@@ -249,7 +249,7 @@ export default function Orders() {
                       <button
                         onClick={() => reactivate(o.id)}
                         disabled={authLoading}
-                        className="rounded-2xl border border-slate-800/70 bg-slate-900/60 px-3 py-1 text-xs text-slate-200 transition hover:border-sky-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-1 text-xs text-sky-700 transition hover:border-sky-300 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Reactivar
                       </button>
@@ -260,7 +260,7 @@ export default function Orders() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td className="px-4 py-12 text-center text-slate-400" colSpan={10}>
+                <td className="px-4 py-12 text-center text-slate-500" colSpan={10}>
                   {loading ? "Cargando órdenes…" : "Sin resultados."}
                 </td>
               </tr>

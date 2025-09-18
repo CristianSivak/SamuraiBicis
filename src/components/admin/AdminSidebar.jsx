@@ -15,32 +15,32 @@ export default function AdminSidebar({ collapsed, onToggle }) {
         exact={!!exact}
         to={to}
         title={collapsed ? label : undefined}
-        className="group relative flex items-center gap-3 rounded-2xl px-3 py-2 text-sm text-slate-300 transition hover:bg-slate-900/60 hover:text-white"
-        activeClassName="bg-slate-900/80 text-white shadow-lg shadow-sky-900/40"
+        className="group relative flex items-center gap-3 rounded-2xl px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+        activeClassName="bg-white text-slate-900 shadow-lg shadow-sky-100"
       >
-        <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900/70 text-slate-400 transition group-hover:bg-slate-900 group-hover:text-white">
+        <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition group-hover:bg-slate-200 group-hover:text-slate-900">
           <Icon className="h-5 w-5" />
         </span>
         {!collapsed && <span className="truncate">{label}</span>}
-        <span className="pointer-events-none absolute inset-0 rounded-2xl border border-slate-800/40 opacity-0 transition group-hover:opacity-100" />
+        <span className="pointer-events-none absolute inset-0 rounded-2xl border border-slate-200 opacity-0 transition group-hover:opacity-100" />
       </NavLink>
     );
   };
   return (
     <div className="flex h-full flex-col px-4 py-6">
-      <div className="flex items-center justify-between rounded-2xl border border-slate-800/60 bg-slate-900/70 px-3 py-3">
+      <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500" />
           {!collapsed && (
             <div>
-              <p className="text-sm font-semibold text-white">Samurai Admin</p>
-              <p className="text-xs text-slate-400">Panel renovado</p>
+              <p className="text-sm font-semibold text-slate-900">Samurai Admin</p>
+              <p className="text-xs text-slate-500">Panel renovado</p>
             </div>
           )}
         </div>
         <button
           onClick={onToggle}
-          className="rounded-2xl border border-slate-800/60 bg-slate-900/60 px-2 py-1 text-xs text-slate-300 transition hover:border-sky-500 hover:text-white"
+          className="rounded-2xl border border-slate-200 bg-white px-2 py-1 text-xs text-slate-500 transition hover:border-sky-400 hover:text-slate-900"
           title={collapsed ? "Expandir" : "Colapsar"}
         >
           {collapsed ? "»" : "«"}
@@ -53,15 +53,15 @@ export default function AdminSidebar({ collapsed, onToggle }) {
         ))}
       </nav>
 
-      <div className="mt-auto rounded-2xl border border-slate-800/60 bg-slate-900/60 p-4 text-xs text-slate-300">
+      <div className="mt-auto rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-500 shadow-sm">
         {!collapsed ? (
           <>
-            <p className="font-semibold text-white">Estado del sistema</p>
-            <p className="mt-2 text-slate-400">Uptime 99.97%</p>
-            <p className="text-slate-400">Build v1.4.0</p>
+            <p className="font-semibold text-slate-900">Estado del sistema</p>
+            <p className="mt-2 text-slate-500">Uptime 99.97%</p>
+            <p className="text-slate-500">Build v1.4.0</p>
           </>
         ) : (
-          <div className="text-center text-slate-400">v1.4</div>
+          <div className="text-center text-slate-500">v1.4</div>
         )}
       </div>
     </div>
