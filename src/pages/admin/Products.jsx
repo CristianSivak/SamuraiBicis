@@ -9,8 +9,8 @@ import {
 import { LoadingOverlay } from "../../components/ui/LoadingIndicators";
 
 const statusStyles = {
-  true: "border border-emerald-400/40 bg-emerald-500/15 text-emerald-200",
-  false: "border border-slate-700 bg-slate-900/60 text-slate-300",
+  true: "border border-emerald-200 bg-emerald-50 text-emerald-600",
+  false: "border border-slate-200 bg-slate-100 text-slate-500",
 };
 
 function money(n) {
@@ -72,39 +72,39 @@ export default function Products() {
 
   return (
     <div className="space-y-8">
-      <section className="relative overflow-hidden rounded-3xl border border-slate-800/70 bg-slate-900/40 p-8 shadow-[0_45px_80px_-50px_rgba(15,23,42,0.95)]">
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_45px_80px_-50px_rgba(15,23,42,0.2)]">
         <div className="absolute -right-28 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full bg-fuchsia-500/25 blur-3xl" />
         <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-800/60 bg-slate-900/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-slate-300">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs uppercase tracking-[0.3em] text-slate-500">
               Inventario vivo
             </div>
             <div>
-              <h1 className="text-3xl font-semibold text-white">Productos</h1>
-              <p className="mt-3 max-w-xl text-sm text-slate-300">
+              <h1 className="text-3xl font-semibold text-slate-900">Productos</h1>
+              <p className="mt-3 max-w-xl text-sm text-slate-500">
                 Administrá catálogo y stock con feedback inmediato y animaciones suaves durante las operaciones.
               </p>
             </div>
           </div>
           <button
             onClick={() => setModalOpen(true)}
-            className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-900/40 transition hover:translate-y-[-1px]"
+            className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-200/60 transition hover:-translate-y-0.5"
           >
             Nuevo producto
           </button>
         </div>
       </section>
 
-      <div className="rounded-3xl border border-slate-800/70 bg-slate-900/40 p-6 shadow-[0_35px_65px_-45px_rgba(15,23,42,0.9)]">
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_35px_65px_-45px_rgba(15,23,42,0.18)]">
         <div className="grid gap-4 md:grid-cols-4">
           <input
-            className="rounded-2xl border border-slate-800/70 bg-slate-900/60 px-4 py-2 text-sm text-slate-100 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
+            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
             placeholder="Buscar por nombre…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
           <select
-            className="rounded-2xl border border-slate-800/70 bg-slate-900/60 px-4 py-2 text-sm text-slate-100 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
+            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
             value={onlyActive}
             onChange={(e) => setOnlyActive(e.target.value)}
           >
@@ -113,7 +113,7 @@ export default function Products() {
             <option value="false">Solo inactivos</option>
           </select>
           <select
-            className="rounded-2xl border border-slate-800/70 bg-slate-900/60 px-4 py-2 text-sm text-slate-100 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
+            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
@@ -124,22 +124,22 @@ export default function Products() {
             <option value="urbana">Urbana</option>
             <option value="accesorios">Accesorios</option>
           </select>
-          <div className="flex items-center justify-end text-sm text-slate-300">
+          <div className="flex items-center justify-end text-sm text-slate-500">
             {loading ? "Cargando…" : `${filtered.length} resultados`}
           </div>
         </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-3xl border border-slate-800/70 bg-slate-900/40 shadow-[0_40px_70px_-45px_rgba(15,23,42,0.9)]">
+      <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_40px_70px_-45px_rgba(15,23,42,0.18)]">
         {loading && (
           <LoadingOverlay
             label="Sincronizando productos…"
-            className="rounded-[inherit] border border-slate-800/70 bg-slate-950/80 text-slate-200"
-            labelClassName="text-slate-200"
+            className="rounded-[inherit] border border-slate-200 bg-white text-slate-600"
+            labelClassName="text-slate-600"
           />
         )}
-        <table className="min-w-full divide-y divide-slate-800/70 text-sm text-slate-200">
-          <thead className="bg-slate-900/80 text-slate-300">
+        <table className="min-w-full divide-y divide-slate-200 text-sm text-slate-600">
+          <thead className="bg-slate-100 text-slate-500">
             <tr>
               <th className="px-4 py-3 text-left">Producto</th>
               <th className="px-4 py-3 text-left">Categoría</th>
@@ -149,7 +149,7 @@ export default function Products() {
               <th className="px-4 py-3 text-right">Acciones</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60">
+          <tbody className="divide-y divide-slate-100">
             {filtered.map((p) => (
               <tr key={p.id}>
                 <td className="px-4 py-4">
@@ -157,17 +157,17 @@ export default function Products() {
                     {p.imageUrl ? (
                       <img src={p.imageUrl} alt={p.name} className="h-12 w-12 rounded-xl object-cover" />
                     ) : (
-                      <div className="h-12 w-12 rounded-xl border border-slate-800/70 bg-slate-900/60" />
+                      <div className="h-12 w-12 rounded-xl border border-slate-200 bg-slate-50" />
                     )}
                     <div>
-                      <div className="text-sm font-semibold text-white">{p.name}</div>
-                      <div className="text-xs text-slate-400">{p.id}</div>
+                      <div className="text-sm font-semibold text-slate-900">{p.name}</div>
+                      <div className="text-xs text-slate-500">{p.id}</div>
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-4 capitalize text-slate-300">{p.category || "general"}</td>
-                <td className="px-4 py-4 text-right font-semibold text-white">{money(p.price)}</td>
-                <td className="px-4 py-4 text-right text-slate-300">{p.stock ?? 0}</td>
+                <td className="px-4 py-4 capitalize text-slate-500">{p.category || "general"}</td>
+                <td className="px-4 py-4 text-right font-semibold text-slate-900">{money(p.price)}</td>
+                <td className="px-4 py-4 text-right text-slate-500">{p.stock ?? 0}</td>
                 <td className="px-4 py-4">
                   <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ${statusStyles[p.active]}`}>
                     <span className="h-2 w-2 rounded-full bg-current" />
@@ -177,13 +177,13 @@ export default function Products() {
                 <td className="px-4 py-4">
                   <div className="flex justify-end gap-2">
                     <button
-                      className="rounded-2xl border border-slate-800/70 bg-slate-900/60 px-3 py-1 text-xs text-slate-200 transition hover:border-sky-400 hover:text-white"
+                      className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600 transition hover:border-sky-400 hover:text-slate-900"
                       onClick={() => setEditing(p)}
                     >
                       Editar
                     </button>
                     <button
-                      className="rounded-2xl border border-slate-800/70 bg-slate-900/60 px-3 py-1 text-xs text-slate-200 transition hover:border-rose-400 hover:text-white"
+                      className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600 transition hover:border-rose-400 hover:text-slate-900"
                       onClick={() => handleDelete(p.id)}
                     >
                       Eliminar
@@ -194,7 +194,7 @@ export default function Products() {
             ))}
             {!loading && filtered.length === 0 && (
               <tr>
-                <td className="px-4 py-12 text-center text-slate-400" colSpan={6}>
+                <td className="px-4 py-12 text-center text-slate-500" colSpan={6}>
                   Sin resultados.
                 </td>
               </tr>

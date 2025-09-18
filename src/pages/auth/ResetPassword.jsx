@@ -67,35 +67,35 @@ export default function ResetPassword() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <LoadingSpinner label="Verificando enlace…" className="text-slate-200" />
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <LoadingSpinner label="Verificando enlace…" className="text-slate-500" />
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950 py-12">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(79,70,229,0.22),_transparent_60%),radial-gradient(circle_at_bottom,_rgba(14,165,233,0.18),_transparent_55%)]" />
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500" />
+    <div className="relative min-h-screen overflow-hidden bg-slate-50 py-12">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.12),_transparent_60%),radial-gradient(circle_at_bottom,_rgba(14,165,233,0.12),_transparent_55%)]" />
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-400 via-sky-400 to-emerald-400" />
 
       <div className="relative z-10 mx-auto flex max-w-5xl flex-col gap-8 px-4 sm:px-6 lg:flex-row lg:items-center lg:px-8">
-        <section className="max-w-lg space-y-6 text-slate-100">
-          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-2 text-xs uppercase tracking-[0.3em] text-indigo-200">
+        <section className="max-w-lg space-y-6 text-slate-700">
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs uppercase tracking-[0.3em] text-indigo-500 shadow-sm">
             Seguridad reforzada
           </div>
           <div>
-            <h1 className="text-3xl font-semibold text-white sm:text-4xl">
+            <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
               Restablecé tu acceso en un par de pasos.
             </h1>
-            <p className="mt-3 text-sm text-slate-300 sm:text-base">
+            <p className="mt-3 text-sm text-slate-600 sm:text-base">
               Creamos un flujo guiado con estados claros y loaders visibles para que sepas cuándo tu nueva contraseña está lista.
             </p>
           </div>
-          <ul className="grid gap-3 text-sm text-slate-300 sm:grid-cols-2">
+          <ul className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
             {["Token verificado", "Enlace seguro"].map((item) => (
               <li
                 key={item}
-                className="flex items-center gap-3 rounded-2xl border border-slate-800/60 bg-slate-900/60 px-4 py-3 shadow-[0_18px_38px_-25px_rgba(15,23,42,0.9)]"
+                className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0_18px_38px_-25px_rgba(15,23,42,0.15)]"
               >
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-500 text-sm font-semibold text-white">
                   ✓
@@ -106,52 +106,52 @@ export default function ResetPassword() {
           </ul>
         </section>
 
-        <section className="w-full max-w-md rounded-3xl border border-slate-800/80 bg-slate-900/60 p-8 shadow-[0_35px_60px_-15px_rgba(15,23,42,0.6)] backdrop-blur">
+        <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_35px_60px_-15px_rgba(15,23,42,0.18)] backdrop-blur">
           <header className="space-y-2">
-            <h2 className="text-2xl font-semibold text-white">Definir contraseña</h2>
+            <h2 className="text-2xl font-semibold text-slate-900">Definir contraseña</h2>
             {email && (
-              <p className="text-xs uppercase tracking-wide text-slate-400">
-                Para <span className="font-semibold text-slate-200">{email}</span>
+              <p className="text-xs uppercase tracking-wide text-slate-500">
+                Para <span className="font-semibold text-slate-700">{email}</span>
               </p>
             )}
           </header>
 
           <form className="mt-6 space-y-4" onSubmit={onSubmit} aria-busy={saving}>
             {err && (
-              <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600">
                 {err}
               </div>
             )}
             {msg && (
-              <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-600">
                 {msg}
               </div>
             )}
 
             <div className="space-y-2">
-              <label className="text-xs font-medium uppercase tracking-wide text-slate-300">Nueva contraseña</label>
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Nueva contraseña</label>
               <input
                 type="password"
                 value={pass1}
                 onChange={(e) => setPass1(e.target.value)}
                 required
-                className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-medium uppercase tracking-wide text-slate-300">Repetir contraseña</label>
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Repetir contraseña</label>
               <input
                 type="password"
                 value={pass2}
                 onChange={(e) => setPass2(e.target.value)}
                 required
-                className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"
               />
             </div>
 
             <button
-              className="inline-flex min-w-[160px] items-center justify-center rounded-xl bg-gradient-to-r from-indigo-500 to-sky-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-900/50 transition focus:outline-none focus:ring-2 focus:ring-indigo-400/60 disabled:opacity-60"
+              className="inline-flex min-w-[160px] items-center justify-center rounded-xl bg-gradient-to-r from-indigo-500 to-sky-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-200/50 transition focus:outline-none focus:ring-2 focus:ring-indigo-400/60 disabled:opacity-60"
               disabled={saving}
             >
               <BusyButtonContent busy={saving} busyLabel="Guardando…" label="Guardar" />

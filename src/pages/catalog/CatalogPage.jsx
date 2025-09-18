@@ -247,21 +247,21 @@ export default function CatalogPage({ isLoggedIn = false }) {
   const showOverlay = loading && initialLoaded;
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
+    <main className="min-h-screen bg-slate-50 text-slate-900">
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.25),_transparent_60%),radial-gradient(circle_at_bottom,_rgba(129,140,248,0.22),_transparent_55%)]" />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-sky-500 via-purple-500 to-slate-500" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),_transparent_60%),radial-gradient(circle_at_bottom,_rgba(165,180,252,0.18),_transparent_55%)]" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-sky-400 via-indigo-400 to-slate-300" />
         <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="grid gap-10 lg:grid-cols-[3fr_2fr] lg:items-center">
             <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-4 py-2 text-xs uppercase tracking-[0.3em] text-sky-100">
+              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs uppercase tracking-[0.3em] text-sky-600 shadow-sm">
                 Catálogo actualizado
               </div>
               <div>
-                <h1 className="text-4xl font-semibold text-white sm:text-5xl">
+                <h1 className="text-4xl font-semibold text-slate-900 sm:text-5xl">
                   Descubrí todo el portfolio Samurai con métricas en vivo.
                 </h1>
-                <p className="mt-4 max-w-2xl text-sm text-slate-200 sm:text-base">
+                <p className="mt-4 max-w-2xl text-sm text-slate-600 sm:text-base">
                   Filtrá por categoría, ordená en segundos y detectá la disponibilidad al instante. Cada interacción tiene loaders claros para que la experiencia sea más fluida.
                 </p>
               </div>
@@ -273,28 +273,28 @@ export default function CatalogPage({ isLoggedIn = false }) {
                 ].map((item) => (
                   <div
                     key={item.label}
-                    className="rounded-3xl border border-slate-800/60 bg-slate-900/50 px-4 py-4 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.8)]"
+                    className="rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.2)]"
                   >
-                    <dt className="text-xs uppercase tracking-wide text-slate-400">{item.label}</dt>
-                    <dd className="mt-2 text-xl font-semibold text-white">{item.value}</dd>
+                    <dt className="text-xs uppercase tracking-wide text-slate-500">{item.label}</dt>
+                    <dd className="mt-2 text-xl font-semibold text-slate-900">{item.value}</dd>
                   </div>
                 ))}
               </dl>
             </div>
-            <div className="relative overflow-hidden rounded-3xl border border-slate-800/60 bg-slate-900/40 p-6 shadow-[0_40px_70px_-35px_rgba(15,23,42,0.8)]">
-              <div className="absolute -right-20 top-1/2 h-60 w-60 -translate-y-1/2 rounded-full bg-sky-500/30 blur-3xl" />
+            <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_40px_70px_-35px_rgba(15,23,42,0.18)]">
+              <div className="absolute -right-20 top-1/2 h-60 w-60 -translate-y-1/2 rounded-full bg-sky-200/60 blur-3xl" />
               <div className="relative space-y-6">
-                <h2 className="text-lg font-semibold text-white">Carrito inteligente</h2>
-                <p className="text-sm text-slate-300">
+                <h2 className="text-lg font-semibold text-slate-900">Carrito inteligente</h2>
+                <p className="text-sm text-slate-600">
                   Guardamos tu selección mientras navegás y te avisamos si el stock cambia. Abrilo para ver detalles y finalizar tu pedido.
                 </p>
                 <button
                   onClick={() => setCartOpen(true)}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-900/40 transition hover:translate-y-[-1px]"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 px-6 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-sky-300/40 transition hover:-translate-y-0.5"
                 >
                   Abrir carrito ({cart.length})
                 </button>
-                <div className="rounded-2xl border border-slate-800/70 bg-slate-900/60 px-4 py-3 text-xs text-slate-400">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
                   {isLoggedIn ? (
                     <p>Los precios incluyen tu lista mayorista. Podés enviar el pedido directo al panel.</p>
                   ) : (
@@ -323,7 +323,7 @@ export default function CatalogPage({ isLoggedIn = false }) {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex w-full items-center gap-3 sm:max-w-sm">
                 <button
-                  className="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-slate-800/60 bg-slate-900/60 px-3 py-2 text-xs font-medium text-slate-200 shadow-sm transition hover:bg-slate-900/80 lg:hidden"
+                  className="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 shadow-sm transition hover:bg-slate-100 lg:hidden"
                   onClick={() => setMobileOpen(true)}
                 >
                   Filtros
@@ -335,7 +335,7 @@ export default function CatalogPage({ isLoggedIn = false }) {
                     placeholder="Buscar por producto o marca"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="w-full rounded-2xl border border-slate-800/60 bg-slate-900/60 px-4 py-2.5 text-sm text-slate-100 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
                   />
                 </div>
               </div>
@@ -350,12 +350,12 @@ export default function CatalogPage({ isLoggedIn = false }) {
               onClear={clearFilters}
             />
 
-            <div className="relative overflow-hidden rounded-3xl border border-slate-800/70 bg-slate-900/40 p-6 shadow-[0_50px_80px_-45px_rgba(15,23,42,0.9)]">
+            <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_50px_80px_-45px_rgba(15,23,42,0.18)]">
               {showOverlay && (
                 <LoadingOverlay
                   label="Actualizando catálogo…"
-                  className="rounded-[inherit] border border-slate-800/70 bg-slate-950/80 text-slate-200"
-                  labelClassName="text-slate-200"
+                  className="rounded-[inherit] border border-slate-200 bg-white/90 text-slate-600"
+                  labelClassName="text-slate-500"
                 />
               )}
               {showSkeleton ? (
@@ -417,10 +417,10 @@ export default function CatalogPage({ isLoggedIn = false }) {
 function FiltersSidebar({ categories, selected, onToggle, onClear, loading }) {
   return (
     <div className="sticky top-24 space-y-4">
-      <div className="rounded-3xl border border-slate-800/70 bg-slate-900/40 p-6 shadow-[0_40px_70px_-45px_rgba(15,23,42,0.9)]">
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_40px_70px_-45px_rgba(15,23,42,0.18)]">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white">Categorías</h3>
-          <button onClick={onClear} className="text-xs text-slate-400 transition hover:text-slate-200">
+          <h3 className="text-sm font-semibold text-slate-900">Categorías</h3>
+          <button onClick={onClear} className="text-xs text-slate-500 transition hover:text-slate-600">
             Borrar filtros
           </button>
         </div>
@@ -428,13 +428,13 @@ function FiltersSidebar({ categories, selected, onToggle, onClear, loading }) {
           <ul className="mt-4 space-y-3">
             {Array.from({ length: 5 }).map((_, index) => (
               <li key={index} className="flex items-center gap-3">
-                <span className="h-4 w-4 rounded border border-slate-700 bg-slate-800 animate-pulse" />
-                <span className="h-3 w-24 rounded bg-slate-800/60 animate-pulse" />
+                <span className="h-4 w-4 rounded border border-slate-200 bg-slate-200 animate-pulse" />
+                <span className="h-3 w-24 rounded bg-slate-200/70 animate-pulse" />
               </li>
             ))}
           </ul>
         ) : (
-          <ul className="mt-4 space-y-3 text-sm text-slate-300">
+          <ul className="mt-4 space-y-3 text-sm text-slate-500">
             {categories.map((c) => (
               <li key={c.id} className="flex items-center gap-3">
                 <input
@@ -442,9 +442,9 @@ function FiltersSidebar({ categories, selected, onToggle, onClear, loading }) {
                   type="checkbox"
                   checked={selected.includes(c.id)}
                   onChange={() => onToggle(c.id)}
-                  className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-sky-400 focus:ring-sky-500"
+                  className="h-4 w-4 rounded border-slate-300 bg-white text-sky-500 focus:ring-sky-500"
                 />
-                <label htmlFor={`cat-${c.id}`} className="cursor-pointer text-sm text-slate-200">
+                <label htmlFor={`cat-${c.id}`} className="cursor-pointer text-sm text-slate-600">
                   {c.name}
                 </label>
               </li>
@@ -453,8 +453,8 @@ function FiltersSidebar({ categories, selected, onToggle, onClear, loading }) {
         )}
       </div>
 
-      <div className="rounded-3xl border border-slate-800/70 bg-slate-900/50 px-5 py-4 text-xs text-slate-300 shadow-[0_30px_50px_-40px_rgba(15,23,42,0.9)]">
-        <p className="font-semibold text-slate-100">Tip:</p>
+      <div className="rounded-3xl border border-slate-200 bg-white px-5 py-4 text-xs text-slate-500 shadow-[0_30px_50px_-40px_rgba(15,23,42,0.18)]">
+        <p className="font-semibold text-slate-700">Tip:</p>
         <p className="mt-1 leading-relaxed">
           Combiná filtros y ordenamientos. Las cargas ahora muestran overlays para que sepas cuándo se actualiza el listado.
         </p>
@@ -473,15 +473,15 @@ function FiltersDrawer({ open, onClose, categories, selected, onToggle, onClear,
         onClick={onClose}
       />
       <aside
-        className={`absolute bottom-0 left-0 right-0 rounded-t-3xl border border-slate-800/70 bg-slate-950/95 p-6 shadow-2xl transition-transform ${
+        className={`absolute bottom-0 left-0 right-0 rounded-t-3xl border border-slate-200 bg-white p-6 shadow-2xl transition-transform ${
           open ? "translate-y-0" : "translate-y-full"
         }`}
         role="dialog"
         aria-modal="true"
       >
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white">Filtrar</h3>
-          <button onClick={onClose} className="rounded-lg px-2 py-1 text-xs text-slate-300 hover:bg-slate-900">
+          <h3 className="text-sm font-semibold text-slate-900">Filtrar</h3>
+          <button onClick={onClose} className="rounded-lg px-2 py-1 text-xs text-slate-500 hover:bg-slate-100">
             Cerrar
           </button>
         </div>
@@ -497,7 +497,7 @@ function FiltersDrawer({ open, onClose, categories, selected, onToggle, onClear,
         <div className="mt-6">
           <button
             onClick={onClose}
-            className="w-full rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-900/40"
+            className="w-full rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-200/60"
           >
             Ver resultados
           </button>
@@ -512,7 +512,7 @@ function SortBar({ sort, setSort }) {
     <div className="shrink-0">
       <label className="sr-only">Ordenar</label>
       <select
-        className="rounded-2xl border border-slate-800/60 bg-slate-900/60 px-4 py-2 text-sm text-slate-100 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
+        className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
         value={sort}
         onChange={(e) => setSort(e.target.value)}
       >
@@ -535,13 +535,13 @@ function ActiveFilters({ categories, selected, onRemove, onClear }) {
         <button
           key={id}
           onClick={() => onRemove(id)}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/80 px-4 py-1.5 text-slate-200 transition hover:border-sky-500 hover:text-white"
+          className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-1.5 text-slate-600 transition hover:border-sky-500 hover:text-slate-900"
         >
           {map[id]}
-          <span className="text-slate-400">✕</span>
+          <span className="text-slate-500">✕</span>
         </button>
       ))}
-      <button onClick={onClear} className="rounded-full px-3 py-1 text-slate-400 hover:text-slate-200">
+      <button onClick={onClear} className="rounded-full px-3 py-1 text-slate-500 hover:text-slate-600">
         Limpiar todo
       </button>
     </div>
@@ -551,7 +551,7 @@ function ActiveFilters({ categories, selected, onRemove, onClear }) {
 function ProductGrid({ items, isLoggedIn, onAdd }) {
   if (!items.length) {
     return (
-      <div className="rounded-3xl border border-dashed border-slate-700/60 bg-slate-900/40 p-12 text-center text-sm text-slate-300">
+      <div className="rounded-3xl border border-dashed border-slate-300/60 bg-white p-12 text-center text-sm text-slate-500">
         No encontramos resultados. Ajustá tus filtros para explorar más productos.
       </div>
     );
@@ -572,12 +572,12 @@ function ProductGridSkeleton({ count = 8 }) {
     <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {Array.from({ length: count }).map((_, index) => (
         <li key={index} className="animate-pulse">
-          <div className="h-full rounded-3xl border border-slate-800/70 bg-slate-900/60 p-4">
-            <div className="aspect-square w-full rounded-2xl bg-slate-800/70" />
+          <div className="h-full rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <div className="aspect-square w-full rounded-2xl bg-slate-200" />
             <div className="mt-4 space-y-3">
-              <div className="h-3 w-24 rounded bg-slate-800/60" />
-              <div className="h-4 w-40 rounded bg-slate-800/60" />
-              <div className="h-8 w-full rounded-xl bg-slate-800/60" />
+              <div className="h-3 w-24 rounded bg-slate-200/80" />
+              <div className="h-4 w-40 rounded bg-slate-200/80" />
+              <div className="h-8 w-full rounded-xl bg-slate-200/80" />
             </div>
           </div>
         </li>
@@ -589,8 +589,8 @@ function ProductGridSkeleton({ count = 8 }) {
 function ProductCard({ product, onAdd }) {
   const available = (product.stock ?? 0) > 0;
   return (
-    <article className="group relative h-full overflow-hidden rounded-3xl border border-slate-800/60 bg-slate-900/50 p-4 shadow-[0_30px_60px_-35px_rgba(15,23,42,0.85)] transition duration-200 hover:-translate-y-1 hover:border-sky-500/60">
-      <div className="aspect-square w-full overflow-hidden rounded-2xl bg-slate-900">
+    <article className="group relative h-full overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_30px_60px_-35px_rgba(15,23,42,0.18)] transition duration-200 hover:-translate-y-1 hover:border-sky-500/60">
+      <div className="aspect-square w-full overflow-hidden rounded-2xl bg-slate-100">
         {product.imageUrl ? (
           <img
             src={product.imageUrl}
@@ -606,29 +606,29 @@ function ProductCard({ product, onAdd }) {
       </div>
       <div className="mt-4 space-y-3">
         {product.brand ? (
-          <p className="text-xs uppercase tracking-wide text-slate-400">{product.brand}</p>
+          <p className="text-xs uppercase tracking-wide text-slate-500">{product.brand}</p>
         ) : null}
-        <h3 className="text-sm font-semibold text-white">{product.name}</h3>
-        <div className="flex items-center justify-between text-xs text-slate-300">
+        <h3 className="text-sm font-semibold text-slate-900">{product.name}</h3>
+        <div className="flex items-center justify-between text-xs text-slate-500">
           <span
             className={`inline-flex items-center gap-1 rounded-full px-3 py-1 font-medium ${
               available
-                ? "bg-emerald-400/10 text-emerald-200"
-                : "bg-slate-800 text-slate-400"
+                ? "bg-emerald-100 text-emerald-600"
+                : "bg-slate-100 text-slate-500"
             }`}
           >
             <span className="h-2 w-2 rounded-full bg-current" />
             {available ? "Disponible" : "Sin stock"}
           </span>
-          <span className="text-sm font-semibold text-white">{money(product.price)}</span>
+          <span className="text-sm font-semibold text-slate-900">{money(product.price)}</span>
         </div>
         <button
           disabled={!available}
           onClick={() => onAdd(product)}
           className={`flex w-full items-center justify-center rounded-2xl px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-sky-400/60 ${
             available
-              ? "bg-gradient-to-r from-sky-500 to-indigo-500 text-white shadow-lg shadow-sky-900/40 hover:translate-y-[-1px]"
-              : "cursor-not-allowed border border-slate-800 bg-slate-900 text-slate-500"
+              ? "bg-gradient-to-r from-sky-500 to-indigo-500 text-white shadow-lg shadow-sky-200/60 hover:-translate-y-0.5"
+              : "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-500"
           }`}
         >
           Agregar al carrito
@@ -649,27 +649,27 @@ function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn
   return (
     <div className={`fixed inset-0 z-[60] ${open ? "" : "pointer-events-none"}`}>
       <div
-        className={`absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity ${
+        className={`absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity ${
           open ? "opacity-100" : "opacity-0"
         }`}
         onClick={onClose}
       />
       <aside
-        className={`absolute right-0 top-0 bottom-0 w-full max-w-md rounded-l-3xl border border-slate-800/80 bg-slate-950/95 p-6 shadow-2xl transition-transform ${
+        className={`absolute right-0 top-0 bottom-0 w-full max-w-md rounded-l-3xl border border-slate-200 bg-white p-6 shadow-2xl transition-transform ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
         role="dialog"
         aria-modal="true"
       >
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white">Tu carrito</h3>
-          <button onClick={onClose} className="rounded-xl px-3 py-2 text-xs text-slate-300 hover:bg-slate-900/80">
+          <h3 className="text-sm font-semibold text-slate-900">Tu carrito</h3>
+          <button onClick={onClose} className="rounded-xl px-3 py-2 text-xs text-slate-500 hover:bg-slate-100">
             Cerrar
           </button>
         </div>
 
         {!cart.length ? (
-          <div className="mt-6 rounded-2xl border border-slate-800/70 bg-slate-900/60 p-6 text-center text-sm text-slate-300">
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
             Todavía no agregaste productos.
           </div>
         ) : (
@@ -680,27 +680,27 @@ function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn
                 const disableDecrease = it.qty <= 1;
                 const disableIncrease = availableStock > 0 ? it.qty >= availableStock : true;
                 return (
-                  <li key={it.id} className="flex items-center gap-3 rounded-2xl border border-slate-800/70 bg-slate-900/50 p-4">
-                    <div className="h-16 w-16 overflow-hidden rounded-2xl bg-slate-900">
+                  <li key={it.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="h-16 w-16 overflow-hidden rounded-2xl bg-slate-100">
                       {it.imageUrl ? (
                         <img src={it.imageUrl} className="h-full w-full object-cover" alt="" />
                       ) : (
                         <div className="flex h-full items-center justify-center text-xs text-slate-500">Sin imagen</div>
                       )}
                     </div>
-                    <div className="flex-1 text-sm text-slate-200">
-                      <div className="font-medium text-white">{it.name}</div>
-                      <div className="text-xs text-slate-400">{money(it.price)} c/u</div>
+                    <div className="flex-1 text-sm text-slate-600">
+                      <div className="font-medium text-slate-900">{it.name}</div>
+                      <div className="text-xs text-slate-500">{money(it.price)} c/u</div>
                       <div className="mt-3 inline-flex items-center gap-2">
                         <button
-                          className="rounded-xl border border-slate-700 px-2 text-sm text-slate-200 transition hover:bg-slate-800 disabled:opacity-50"
+                          className="rounded-xl border border-slate-300 px-2 text-sm text-slate-600 transition hover:bg-slate-100 disabled:opacity-50"
                           onClick={() => setQty(it.id, it.qty - 1)}
                           disabled={disableDecrease}
                         >
                           –
                         </button>
                         <input
-                          className="w-14 rounded-xl border border-slate-700 bg-slate-900 px-2 py-1 text-center text-sm text-slate-100 focus:border-sky-500 focus:outline-none"
+                          className="w-14 rounded-xl border border-slate-300 bg-white px-2 py-1 text-center text-sm text-slate-700 focus:border-sky-500 focus:outline-none"
                           type="number"
                           min={1}
                           max={availableStock || 1}
@@ -708,7 +708,7 @@ function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn
                           onChange={(e) => setQty(it.id, Number(e.target.value || 1))}
                         />
                         <button
-                          className="rounded-xl border border-slate-700 px-2 text-sm text-slate-200 transition hover:bg-slate-800 disabled:opacity-50"
+                          className="rounded-xl border border-slate-300 px-2 text-sm text-slate-600 transition hover:bg-slate-100 disabled:opacity-50"
                           onClick={() => setQty(it.id, it.qty + 1)}
                           disabled={disableIncrease}
                         >
@@ -716,14 +716,14 @@ function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn
                         </button>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-2 text-right text-sm text-slate-200">
+                    <div className="flex flex-col items-end gap-2 text-right text-sm text-slate-600">
                       <button
-                        className="text-xs text-slate-400 hover:text-slate-200"
+                        className="text-xs text-slate-500 hover:text-slate-700"
                         onClick={() => removeItem(it.id)}
                       >
                         Quitar
                       </button>
-                      <div className="text-sm font-semibold text-white">{money(it.price * it.qty)}</div>
+                      <div className="text-sm font-semibold text-slate-900">{money(it.price * it.qty)}</div>
                     </div>
                   </li>
                 );
@@ -731,17 +731,17 @@ function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn
             </ul>
 
             {stockProblems.length > 0 && (
-              <div className="mt-4 rounded-2xl border border-amber-400/40 bg-amber-500/10 p-4 text-xs text-amber-200">
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-600">
                 Revisá cantidades: hay productos con menos stock disponible del solicitado.
               </div>
             )}
 
-            <div className="mt-6 space-y-3 rounded-2xl border border-slate-800/70 bg-slate-900/60 p-4 text-sm text-slate-200">
+            <div className="mt-6 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
               <div className="flex items-center justify-between">
                 <span>Total</span>
-                <span className="text-lg font-semibold text-white">{money(total)}</span>
+                <span className="text-lg font-semibold text-slate-900">{money(total)}</span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 {isLoggedIn
                   ? "El pedido se cargará directamente como orden pagadera."
                   : "Si no iniciaste sesión, generaremos una solicitud para seguimiento manual."}
@@ -749,7 +749,7 @@ function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn
               <button
                 onClick={onCheckout}
                 disabled={checkoutDisabled}
-                className="w-full rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-900/40 transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-200/60 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Avanzar con el pedido
               </button>
@@ -781,11 +781,11 @@ function OrderModal({ open, onClose, submitting, result, onSubmit }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-3xl border border-slate-800/80 bg-slate-950/95 p-6 shadow-2xl">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">Datos del pedido</h2>
-          <button onClick={onClose} className="rounded-xl px-3 py-2 text-xs text-slate-300 hover:bg-slate-900/70">
+          <h2 className="text-lg font-semibold text-slate-900">Datos del pedido</h2>
+          <button onClick={onClose} className="rounded-xl px-3 py-2 text-xs text-slate-500 hover:bg-slate-100">
             Cerrar
           </button>
         </div>
@@ -793,16 +793,16 @@ function OrderModal({ open, onClose, submitting, result, onSubmit }) {
         {result ? (
           <div className="mt-6 space-y-4">
             {result.ok ? (
-              <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-4 text-sm text-emerald-200">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-600">
                 ¡Listo! Tu pedido se creó con ID <b>{result.orderId}</b>. Te contactaremos a la brevedad.
               </div>
             ) : (
-              <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-4 text-sm text-rose-200">
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-600">
                 Hubo un error: {result.error}
               </div>
             )}
             <div className="text-right">
-              <button onClick={onClose} className="rounded-2xl border border-slate-800/70 px-4 py-2 text-sm text-slate-200 hover:bg-slate-900/70">
+              <button onClick={onClose} className="rounded-2xl border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-100">
                 Cerrar
               </button>
             </div>
@@ -816,46 +816,46 @@ function OrderModal({ open, onClose, submitting, result, onSubmit }) {
             }}
           >
             <div className="space-y-2">
-              <label className="text-xs font-medium uppercase tracking-wide text-slate-400">Nombre</label>
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Nombre</label>
               <input
                 required
-                className="w-full rounded-2xl border border-slate-800/70 bg-slate-900/70 px-4 py-2.5 text-sm text-slate-100 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-wide text-slate-400">Email</label>
+                <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Email</label>
                 <input
                   type="email"
                   required
-                  className="w-full rounded-2xl border border-slate-800/70 bg-slate-900/70 px-4 py-2.5 text-sm text-slate-100 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-wide text-slate-400">Teléfono</label>
+                <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Teléfono</label>
                 <input
-                  className="w-full rounded-2xl border border-slate-800/70 bg-slate-900/70 px-4 py-2.5 text-sm text-slate-100 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-medium uppercase tracking-wide text-slate-400">Notas</label>
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Notas</label>
               <textarea
                 rows={3}
-                className="w-full rounded-2xl border border-slate-800/70 bg-slate-900/70 px-4 py-2.5 text-sm text-slate-100 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
             </div>
-            <fieldset className="space-y-3 text-sm text-slate-200">
-              <legend className="text-xs font-medium uppercase tracking-wide text-slate-400">Método de pago</legend>
-              <label className="flex items-center gap-3 rounded-2xl border border-slate-800/70 bg-slate-900/70 px-4 py-2">
+            <fieldset className="space-y-3 text-sm text-slate-600">
+              <legend className="text-xs font-medium uppercase tracking-wide text-slate-500">Método de pago</legend>
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-2">
                 <input
                   type="radio"
                   name="paymentMethod"
@@ -866,7 +866,7 @@ function OrderModal({ open, onClose, submitting, result, onSubmit }) {
                 />
                 Cheque
               </label>
-              <label className="flex items-center gap-3 rounded-2xl border border-slate-800/70 bg-slate-900/70 px-4 py-2">
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-2">
                 <input
                   type="radio"
                   name="paymentMethod"
@@ -881,13 +881,13 @@ function OrderModal({ open, onClose, submitting, result, onSubmit }) {
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-2xl border border-slate-800/70 px-4 py-2 text-sm text-slate-200 hover:bg-slate-900/70"
+                className="rounded-2xl border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-100"
               >
                 Cancelar
               </button>
               <button
                 disabled={submitting || !paymentMethod}
-                className="rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-900/40 transition focus:outline-none focus:ring-2 focus:ring-sky-400/60 disabled:opacity-60"
+                className="rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-200/60 transition focus:outline-none focus:ring-2 focus:ring-sky-400/60 disabled:opacity-60"
               >
                 <BusyButtonContent busy={submitting} busyLabel="Enviando…" label="Enviar pedido" />
               </button>

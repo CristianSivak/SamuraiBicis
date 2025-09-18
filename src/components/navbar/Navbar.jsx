@@ -2,14 +2,14 @@ import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom"; // v5
 
 /**
- * Navbar B2B – Siempre oscura (negra)
- * - Se mantiene negra en top y al scrollear.
+ * Navbar B2B – tono luminoso por defecto
+ * - Barra fija con fondo blanco translúcido y borde suave.
  * - Podés activar el modo transparente pasando transparentOnTop={true}.
  */
 export default function Navbar({
   logoSrc = "/img/samurai.png", // 👈 Vite: si está en public, usalo así
   onLogin,
-  transparentOnTop = false, // <- SIEMPRE NEGRA por defecto
+  transparentOnTop = false, // <- transparente solo si se solicita
   scrollOffsetPx = 8,
 }) {
   const [open, setOpen] = useState(false);
@@ -29,46 +29,52 @@ export default function Navbar({
 
   const headerBg = isTransparentNow
     ? "bg-transparent"
-    : "supports-[backdrop-filter]:bg-black/70 bg-black";
+    : "supports-[backdrop-filter]:bg-white/80 bg-white/95 backdrop-blur border-b border-slate-200";
 
-  const textBase = "text-white";
-  const ringColor = "focus-visible:ring-white";
+  const textBase = isTransparentNow ? "text-white" : "text-slate-900";
+  const ringColor = isTransparentNow
+    ? "focus-visible:ring-white/70"
+    : "focus-visible:ring-slate-900/30";
 
   const linkInactive = isTransparentNow
     ? "text-white/90 hover:text-white hover:bg-white/10"
-    : "text-gray-200 hover:text-white hover:bg-gray-800";
+    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100";
 
   const linkActive = isTransparentNow
     ? "text-white bg-white/20"
-    : "text-white bg-gray-800";
+    : "text-slate-900 bg-white shadow-sm shadow-slate-200";
 
   const outlineBtn =
-    "inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium " +
+    "inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition " +
     (isTransparentNow
       ? "border-white/40 text-white hover:bg-white/10"
-      : "border-gray-600 text-white hover:bg-gray-800") +
+      : "border-slate-200 text-slate-900 hover:bg-slate-100") +
     ` focus:outline-none focus-visible:ring-2 ${ringColor}`;
 
   const solidBtn =
-    "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold " +
-    "bg-white text-black hover:bg-gray-200 " +
-    `focus:outline-none focus-visible:ring-2 ${ringColor}`;
+    "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition " +
+    (isTransparentNow
+      ? "bg-white text-slate-900 hover:bg-slate-100"
+      : "bg-gradient-to-r from-sky-500 via-indigo-500 to-blue-600 text-white shadow-lg shadow-sky-200/60 hover:shadow-xl") +
+    ` focus:outline-none focus-visible:ring-2 ${ringColor}`;
 
   const burgerBtn =
-    "inline-flex items-center justify-center rounded-xl p-2 " +
-    (isTransparentNow ? "text-white hover:bg-white/10" : "text-white hover:bg-gray-800") +
+    "inline-flex items-center justify-center rounded-xl p-2 transition " +
+    (isTransparentNow
+      ? "text-white hover:bg-white/10"
+      : "text-slate-700 hover:bg-slate-100") +
     ` focus:outline-none focus-visible:ring-2 ${ringColor}`;
 
   const mobilePanel =
-    "space-y-2 pb-4 pt-2 rounded-b-xl " +
+    "space-y-2 rounded-b-xl pb-4 pt-2 " +
     (isTransparentNow
-      ? "bg-black/80 backdrop-blur border-t border-white/10 text-white"
-      : "bg-black text-white border-t border-gray-700");
+      ? "bg-black/85 text-white backdrop-blur border-t border-white/15"
+      : "border-t border-slate-200 bg-white/95 text-slate-800 backdrop-blur");
 
   return (
     <header
-      className={`sticky top-0 z-50 backdrop-blur ${headerBg} ${
-        scrolled ? "shadow-sm" : "shadow-none"
+      className={`sticky top-0 z-50 transition-shadow ${headerBg} ${
+        scrolled ? "shadow-[0_12px_30px_-20px_rgba(15,23,42,0.35)]" : "shadow-none"
       }`}
       role="banner"
     >
@@ -90,6 +96,7 @@ export default function Navbar({
               onNavigate={close}
               linkInactive={linkInactive}
               linkActive={linkActive}
+              ringClass={ringColor}
             />
           </div>
 
@@ -129,19 +136,28 @@ export default function Navbar({
         {/* Mobile menu */}
         <div id="mobile-menu" className={`md:hidden ${open ? "block" : "hidden"}`}>
           <div className={mobilePanel}>
-            <MobileLink to="/" onClick={close} exact>
+            <MobileLink to="/" onClick={close} exact isTransparent={isTransparentNow} ringClass={ringColor}>
               Inicio
             </MobileLink>
-            <MobileLink to="/catalogo" onClick={close}>
+            <MobileLink to="/catalogo" onClick={close} isTransparent={isTransparentNow} ringClass={ringColor}>
               Catálogo
             </MobileLink>
-            <MobileLink to="/quiero-ser-cliente" onClick={close}>
+            <MobileLink
+              to="/quiero-ser-cliente"
+              onClick={close}
+              isTransparent={isTransparentNow}
+              ringClass={ringColor}
+            >
               Quiero ser cliente
             </MobileLink>
-            <MobileLink to="/admin" onClick={close}>
+            <MobileLink to="/admin" onClick={close} isTransparent={isTransparentNow} ringClass={ringColor}>
               Admin
             </MobileLink>
-            <div className="border-t border-white/10 pt-2" />
+            <div
+              className={`border-t pt-2 ${
+                isTransparentNow ? "border-white/15" : "border-slate-200/70"
+              }`}
+            />
             <button
               onClick={() => {
                 close();
@@ -161,9 +177,9 @@ export default function Navbar({
   );
 }
 
-function PrimaryLinks({ onNavigate, linkInactive, linkActive }) {
+function PrimaryLinks({ onNavigate, linkInactive, linkActive, ringClass }) {
   const base =
-    "text-sm font-medium transition rounded-lg px-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white";
+    `text-sm font-medium transition rounded-lg px-3 py-2 focus:outline-none focus-visible:ring-2 ${ringClass}`;
   return (
     <div className="flex items-center gap-2" role="menubar">
       <NavLink exact to="/" onClick={onNavigate} className={base + " " + linkInactive} activeClassName={linkActive} role="menuitem">
@@ -202,16 +218,22 @@ function LoginButton({ onLogin, outlineBtn }) {
   );
 }
 
-function MobileLink({ to, children, onClick, exact }) {
+function MobileLink({ to, children, onClick, exact, isTransparent, ringClass }) {
   const base =
-    "block rounded-xl px-4 py-2 text-sm font-medium text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white";
+    `block rounded-xl px-4 py-2 text-sm font-medium focus:outline-none focus-visible:ring-2 ${ringClass}`;
+  const colorClasses = isTransparent
+    ? "text-white hover:bg-white/10"
+    : "text-slate-700 hover:bg-slate-100";
+  const activeClasses = isTransparent
+    ? "bg-white/20 text-white"
+    : "bg-white text-slate-900 shadow-sm shadow-slate-200";
   return (
     <NavLink
       exact={!!exact}
       to={to}
       onClick={onClick}
-      className={base + " hover:bg-white/10"}
-      activeClassName="bg-white/20 text-white"
+      className={`${base} ${colorClasses}`}
+      activeClassName={activeClasses}
     >
       {children}
     </NavLink>

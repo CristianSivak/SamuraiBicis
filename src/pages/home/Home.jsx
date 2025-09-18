@@ -8,7 +8,7 @@ import ModernCallToAction from '../../components/home/ModernCallToAction';
 
 function Home() {
   return (
-    <div className="bg-slate-950 text-white">
+    <div className="bg-slate-50 text-slate-900">
       <HeroSection />
       <div className="relative z-10 -mt-16 sm:-mt-24">
         <BrandsSection logos={brands} />
