@@ -74,7 +74,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 gap-10 md:grid-cols-[1.3fr_1fr_1fr] lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div className="space-y-5">
             <Link to="/" className="inline-flex items-center gap-2" aria-label="Volver al inicio">
-              <img src="/img/samurai.png" alt="Logo Samurai" className="h-12 w-auto" />
+              <img src="/img/samurai-negro-total.png" alt="Logo Samurai" className="h-12 w-auto" />
               <span className="sr-only">Samurai Bicis</span>
             </Link>
             <p className="max-w-sm text-sm text-slate-600">

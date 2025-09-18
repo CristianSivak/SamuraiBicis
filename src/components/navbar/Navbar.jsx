@@ -7,7 +7,7 @@ import { Link, NavLink } from "react-router-dom"; // v5
  * - Podés activar el modo transparente pasando transparentOnTop={true}.
  */
 export default function Navbar({
-  logoSrc = "/img/samurai.png", // 👈 Vite: si está en public, usalo así
+  logoSrc = "/img/samurai-negro-total.png", // 👈 Vite: si está en public, usalo así
   onLogin,
   transparentOnTop = false, // <- transparente solo si se solicita
   scrollOffsetPx = 8,
