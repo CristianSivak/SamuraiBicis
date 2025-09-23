@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { createClientLead } from "../../services/accounts";
+import { BusyButtonContent } from "../../components/ui/LoadingIndicators";
 
-export default function QuieroSerClienteForm({
-  onSuccess
-}) {
+export default function QuieroSerClienteForm({ onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [ok, setOk] = useState(false);
   const [error, setError] = useState("");
@@ -29,7 +28,6 @@ export default function QuieroSerClienteForm({
     e.preventDefault();
     setError("");
 
-    // Validación rápida
     if (!form.acepta) {
       setError("Debés aceptar la política de privacidad para continuar.");
       return;
@@ -41,11 +39,17 @@ export default function QuieroSerClienteForm({
       console.log("Solicitud creada:", id);
       setOk(true);
       onSuccess?.();
-
-      // Reseteo
       setForm({
-        nombre: "", celular: "", email: "", empresa: "", cuit: "",
-        provincia: "", localidad: "", rubro: "", mensaje: "", acepta: false,
+        nombre: "",
+        celular: "",
+        email: "",
+        empresa: "",
+        cuit: "",
+        provincia: "",
+        localidad: "",
+        rubro: "",
+        mensaje: "",
+        acepta: false,
       });
     } catch (err) {
       console.error(err);
@@ -57,199 +61,172 @@ export default function QuieroSerClienteForm({
 
   if (ok) {
     return (
-      <div className="rounded-2xl border border-green-200 bg-green-50 p-6 text-green-800">
-        <h3 className="text-lg font-semibold">¡Gracias! 🎉</h3>
-        <p className="mt-1 text-sm">
-          Recibimos tu solicitud. Nuestro equipo comercial te va a contactar a la brevedad.
-        </p>
-        <button
-          className="mt-4 rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white"
-          onClick={() => setOk(false)}
-        >
-          Enviar otra solicitud
-        </button>
+      <div className="relative overflow-hidden rounded-3xl border border-emerald-500/40 bg-emerald-500/10 p-8 text-emerald-100 shadow-[0_35px_60px_-30px_rgba(16,185,129,0.6)]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.18),_transparent_60%)]" />
+        <div className="relative space-y-3">
+          <h3 className="text-2xl font-semibold text-white">¡Gracias! 🎉</h3>
+          <p className="text-sm text-emerald-100/80">
+            Recibimos tu solicitud. Nuestro equipo comercial te va a contactar a la brevedad.
+          </p>
+          <button
+            className="inline-flex items-center justify-center rounded-xl border border-emerald-400/50 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20"
+            onClick={() => setOk(false)}
+          >
+            Enviar otra solicitud
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border bg-white p-6 sm:p-8">
-      {/* título con subrayado */}
-      <h2 className="mb-6 inline-block border-b-2 border-gray-300 pb-1 text-xl font-semibold text-gray-900">
-        Quiero ser cliente
-      </h2>
-
-      <form onSubmit={onSubmit} className="space-y-6 pr-2 sm:pr-4">
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
+    <div className="relative overflow-hidden rounded-3xl border border-slate-200/40 bg-white/80 p-8 shadow-[0_45px_80px_-45px_rgba(15,23,42,0.6)] backdrop-blur">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.12),_transparent_55%),radial-gradient(circle_at_bottom,_rgba(99,102,241,0.12),_transparent_60%)]" />
+      <div className="relative space-y-8">
+        <header className="space-y-3">
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-300/60 bg-white/60 px-4 py-2 text-xs font-medium uppercase tracking-[0.3em] text-slate-500">
+            Nuevo cliente
           </div>
-        )}
+          <div>
+            <h2 className="text-2xl font-semibold text-slate-900">Quiero ser cliente</h2>
+            <p className="mt-2 text-sm text-slate-500">
+              Completá el formulario y te contactamos con un plan personalizado. Todas las cargas muestran estado y loaders cuando corresponde.
+            </p>
+          </div>
+          <dl className="grid gap-3 text-xs text-slate-500 sm:grid-cols-3">
+            {[{ label: "Tiempo de respuesta", value: "< 24 hs" }, { label: "Cobertura", value: "Todo el país" }, { label: "Canales", value: "Tienda + Mayorista" }].map((item) => (
+              <div key={item.label} className="rounded-2xl border border-slate-200/70 bg-white/50 px-4 py-3 shadow-inner">
+                <dt className="font-medium text-slate-700">{item.label}</dt>
+                <dd className="mt-1 text-slate-500">{item.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </header>
 
-        {/* Nombre */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-900">
-            Tu Nombre y Apellido <span className="text-red-600">*</span>
-          </label>
-          <input
-            type="text"
-            name="nombre"
-            value={form.nombre}
-            onChange={onChange}
-            required
-            className="w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-          />
-        </div>
+        <form onSubmit={onSubmit} className="space-y-6" aria-busy={loading}>
+          {error && (
+            <div className="rounded-2xl border border-rose-400/40 bg-rose-50/80 px-4 py-3 text-sm text-rose-600">
+              {error}
+            </div>
+          )}
 
-        {/* Celular */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-900">
-            Celular <span className="text-red-600">*</span>
-          </label>
-          <input
-            type="text"
-            name="celular"
-            value={form.celular}
-            onChange={onChange}
-            required
-            inputMode="numeric"
-            className="w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            Con código de área, sin el 0 y sin el 15. Ej: 3624-4568923.
-          </p>
-        </div>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <Field
+              label="Tu Nombre y Apellido"
+              name="nombre"
+              required
+              value={form.nombre}
+              onChange={onChange}
+            />
+            <Field
+              label="Celular"
+              name="celular"
+              required
+              value={form.celular}
+              onChange={onChange}
+              inputMode="numeric"
+              helper="Con código de área, sin el 0 y sin el 15. Ej: 3624-4568923."
+            />
+          </div>
 
-        {/* Email */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-900">
-            Correo electrónico <span className="text-red-600">*</span>
-          </label>
-          <input
+          <Field
+            label="Correo electrónico"
             type="email"
             name="email"
+            required
             value={form.email}
             onChange={onChange}
-            required
-            className="w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
           />
-        </div>
 
-        {/* Empresa / CUIT */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-900">
-              Empresa
-            </label>
-            <input
-              type="text"
-              name="empresa"
-              value={form.empresa}
-              onChange={onChange}
-              className="w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-            />
+          <div className="grid gap-6 sm:grid-cols-2">
+            <Field label="Empresa" name="empresa" value={form.empresa} onChange={onChange} />
+            <Field label="CUIT" name="cuit" value={form.cuit} onChange={onChange} />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-900">
-              CUIT
-            </label>
-            <input
-              type="text"
-              name="cuit"
-              value={form.cuit}
-              onChange={onChange}
-              className="w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-            />
-          </div>
-        </div>
 
-        {/* Provincia / Localidad */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-900">
-              Provincia
-            </label>
-            <input
-              type="text"
-              name="provincia"
-              value={form.provincia}
-              onChange={onChange}
-              className="w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-            />
+          <div className="grid gap-6 sm:grid-cols-2">
+            <Field label="Provincia" name="provincia" value={form.provincia} onChange={onChange} />
+            <Field label="Localidad" name="localidad" value={form.localidad} onChange={onChange} />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-900">
-              Localidad
-            </label>
-            <input
-              type="text"
-              name="localidad"
-              value={form.localidad}
-              onChange={onChange}
-              className="w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-            />
-          </div>
-        </div>
 
-        {/* Rubro */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-900">
-            Rubro
+          <div className="grid gap-6 sm:grid-cols-2">
+            <SelectField
+              label="Rubro"
+              name="rubro"
+              value={form.rubro}
+              onChange={onChange}
+              options={[
+                { value: "", label: "Seleccioná una opción" },
+                { value: "tienda", label: "Tienda de bicis" },
+                { value: "taller", label: "Taller" },
+                { value: "distribuidor", label: "Distribuidor" },
+                { value: "otro", label: "Otro" },
+              ]}
+            />
+            <Field
+              as="textarea"
+              label="Mensaje"
+              name="mensaje"
+              rows={4}
+              value={form.mensaje}
+              onChange={onChange}
+            />
+          </div>
+
+          <label className="flex items-start gap-3 rounded-2xl border border-slate-200/70 bg-white/60 px-4 py-3 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              id="acepta"
+              name="acepta"
+              checked={form.acepta}
+              onChange={onChange}
+              className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+            />
+            <span>
+              Acepto la política de privacidad y el tratamiento de mis datos.
+            </span>
           </label>
-          <select
-            name="rubro"
-            value={form.rubro}
-            onChange={onChange}
-            className="w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-          >
-            <option value="">Seleccioná una opción</option>
-            <option value="tienda">Tienda de bicis</option>
-            <option value="taller">Taller</option>
-            <option value="distribuidor">Distribuidor</option>
-            <option value="otro">Otro</option>
-          </select>
-        </div>
 
-        {/* Mensaje */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-900">
-            Mensaje
-          </label>
-          <textarea
-            name="mensaje"
-            value={form.mensaje}
-            onChange={onChange}
-            rows={4}
-            className="w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-          />
-        </div>
-
-        {/* Checkbox */}
-        <div className="flex items-start gap-2">
-          <input
-            type="checkbox"
-            id="acepta"
-            name="acepta"
-            checked={form.acepta}
-            onChange={onChange}
-            className="mt-1 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-          />
-          <label htmlFor="acepta" className="text-sm text-gray-700">
-            Acepto la política de privacidad y el tratamiento de mis datos.
-          </label>
-        </div>
-
-        {/* Botón */}
-        <div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="inline-flex items-center justify-center rounded-xl bg-black px-6 py-2.5 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-60"
-          >
-            {loading ? "Enviando..." : "Enviar solicitud"}
-          </button>
-        </div>
-      </form>
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-xs text-slate-500">
+              Respondemos todas las solicitudes con seguimiento personalizado.
+            </p>
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex min-w-[180px] items-center justify-center rounded-xl bg-gradient-to-r from-slate-900 via-indigo-900 to-sky-900 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/40 transition focus:outline-none focus:ring-2 focus:ring-indigo-400/60 disabled:opacity-60"
+            >
+              <BusyButtonContent busy={loading} busyLabel="Enviando…" label="Enviar solicitud" />
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
+  );
+}
+
+function Field({ label, helper, children, as = "input", ...props }) {
+  const Component = as;
+  const inputClassName = "w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-700 shadow-inner outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40";
+  return (
+    <div className="space-y-2 text-sm">
+      <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        {label}
+        {props.required && <span className="ml-1 text-rose-500">*</span>}
+      </label>
+      <Component className={inputClassName} {...props}>{children}</Component>
+      {helper && <p className="text-xs text-slate-400">{helper}</p>}
+    </div>
+  );
+}
+
+function SelectField({ label, options, ...props }) {
+  return (
+    <Field label={label} as="select" {...props}>
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </Field>
   );
 }

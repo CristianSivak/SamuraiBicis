@@ -224,7 +224,7 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-800 disabled:opacity-60"
+              className="rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-sky-200/60 transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-sky-400/60 disabled:translate-y-0 disabled:opacity-60"
               disabled={loading}
             >
               {loading
