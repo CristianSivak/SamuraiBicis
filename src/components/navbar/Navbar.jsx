@@ -143,6 +143,14 @@ export default function Navbar({
               Catálogo
             </MobileLink>
             <MobileLink
+              to="/estado-de-pedido"
+              onClick={close}
+              isTransparent={isTransparentNow}
+              ringClass={ringColor}
+            >
+              Estado del pedido
+            </MobileLink>
+            <MobileLink
               to="/quiero-ser-cliente"
               onClick={close}
               isTransparent={isTransparentNow}
@@ -187,6 +195,9 @@ function PrimaryLinks({ onNavigate, linkInactive, linkActive, ringClass }) {
       </NavLink>
       <NavLink to="/catalogo" onClick={onNavigate} className={base + " " + linkInactive} activeClassName={linkActive} role="menuitem">
         Catálogo
+      </NavLink>
+      <NavLink to="/estado-de-pedido" onClick={onNavigate} className={base + " " + linkInactive} activeClassName={linkActive} role="menuitem">
+        Estado del pedido
       </NavLink>
       <NavLink to="/quiero-ser-cliente" onClick={onNavigate} className={base + " " + linkInactive} activeClassName={linkActive} role="menuitem">
         Quiero ser cliente

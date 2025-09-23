@@ -1,6 +1,6 @@
 // src/services/orders.ts
 import {
-  collection, doc, getDocs, limit, orderBy, query,
+  collection, doc, getDoc, getDocs, limit, orderBy, query,
   serverTimestamp, Timestamp, updateDoc, where, startAfter, QueryDocumentSnapshot, DocumentData, runTransaction
 } from "firebase/firestore";
 import { auth } from "../firebase";
@@ -17,6 +17,25 @@ function sum(items: OrderItem[]) {
 }
 
 export type PaymentMethod = "cheque" | "transferencia";
+
+export type OrderStatus = "solicitud" | "pendiente" | "pagada" | "cancelada";
+
+export type OrderRecord = {
+  id: string;
+  status: OrderStatus;
+  paymentMethod?: PaymentMethod | null;
+  total?: number;
+  customer?: (Customer & { uid?: string | null }) | null;
+  items?: OrderItem[];
+  createdAt?: Date | null;
+  updatedAt?: Date | null;
+  paidAt?: Date | null;
+};
+
+function toDate(value: unknown): Date | null {
+  if (value instanceof Timestamp) return value.toDate();
+  return null;
+}
 
 export async function createOrder({
   customer, items, paymentMethod
@@ -121,5 +140,51 @@ export async function updateOrderStatus(orderId: string, newStatus: "pendiente" 
   const patch: any = { status: newStatus, updatedAt: serverTimestamp() };
   if (newStatus === "pagada") patch.paidAt = serverTimestamp();
   await updateDoc(doc(db, "orders", orderId), patch);
+}
+
+export async function getOrderStatus(orderId: string, opts: { email?: string } = {}): Promise<OrderRecord> {
+  const trimmedId = String(orderId || "").trim();
+  if (!trimmedId) {
+    throw new Error("Ingresá un número de pedido válido.");
+  }
+
+  const snap = await getDoc(doc(ORDERS, trimmedId));
+  if (!snap.exists()) {
+    throw new Error("No encontramos un pedido con ese código.");
+  }
+
+  const data = snap.data() as any;
+
+  const allowedStatuses: OrderStatus[] = ["solicitud", "pendiente", "pagada", "cancelada"];
+  const rawStatus = String(data?.status || "solicitud");
+  const status = (allowedStatuses.includes(rawStatus as OrderStatus)
+    ? rawStatus
+    : "solicitud") as OrderStatus;
+
+  const inputEmail = String(opts.email || "").trim().toLowerCase();
+  const orderEmail = String(data?.customer?.email || "").trim().toLowerCase();
+  if (inputEmail && orderEmail && inputEmail !== orderEmail) {
+    throw new Error("El correo electrónico no coincide con la orden.");
+  }
+
+  const rawItems = Array.isArray(data?.items) ? data.items : [];
+  const items: OrderItem[] = rawItems.map((item: any) => ({
+    id: String(item?.id || ""),
+    name: String(item?.name || ""),
+    price: Number(item?.price ?? 0),
+    qty: Number(item?.qty ?? 0),
+  })).filter((it) => it.id && it.name);
+
+  return {
+    id: snap.id,
+    status,
+    paymentMethod: (data?.paymentMethod ?? null) as PaymentMethod | null,
+    total: Number(data?.total ?? 0) || undefined,
+    customer: data?.customer ?? null,
+    items,
+    createdAt: toDate(data?.createdAt),
+    updatedAt: toDate(data?.updatedAt),
+    paidAt: toDate(data?.paidAt),
+  };
 }
 
