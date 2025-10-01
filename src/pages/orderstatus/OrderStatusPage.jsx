@@ -1,6 +1,8 @@
-import { useMemo, useState } from "react";
-import { getOrderStatus } from "../../services/orders";
-import { BusyButtonContent } from "../../components/ui/LoadingIndicators";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../auth/AuthContext";
+import { listCustomerOrders } from "../../services/orders";
+import { LoadingSpinner } from "../../components/ui/LoadingIndicators";
 
 const statusLabels = {
   solicitud: "Solicitud recibida",
@@ -26,19 +28,19 @@ const baseSteps = [
     id: "solicitud",
     title: "Solicitud recibida",
     description:
-      "Registramos tu pedido y te enviamos un correo con los datos para que puedas seguirlo cuando quieras.",
+      "Registramos tu pedido y lo vinculamos con tu cuenta para que puedas seguirlo cuando quieras.",
   },
   {
     id: "pendiente",
     title: "Preparando tu pedido",
     description:
-      "Nuestro equipo revisa el stock, coordina la logística y se comunica si surge alguna novedad.",
+      "Nuestro equipo revisa el stock, coordina la logística y te contacta si surge alguna novedad.",
   },
   {
     id: "pagada",
     title: "Pedido completado",
     description:
-      "Confirmamos el pago, cerramos el pedido y te compartimos la información de entrega o retiro.",
+      "Confirmamos el pago, cerramos el pedido y coordinamos la entrega o retiro.",
   },
 ];
 
@@ -233,9 +235,9 @@ function OrderSummary({ order }) {
               Pedido #{order.id}
             </div>
             <div>
-              <h2 className="text-3xl font-semibold text-slate-900">Estado actualizado</h2>
+              <h2 className="text-3xl font-semibold text-slate-900">Estado del pedido</h2>
               <p className="mt-2 text-sm text-slate-600">
-                Última actualización {lastUpdate || "reciente"}. Te avisamos por correo cuando el estado cambie.
+                Actualizamos el estado de tu pedido en tiempo real y te avisamos cuando haya novedades.
               </p>
             </div>
             <dl className="grid gap-4 sm:grid-cols-2">
@@ -284,43 +286,256 @@ function OrderSummary({ order }) {
   );
 }
 
+function OrdersList({ orders = [], selectedOrderId, onSelect = () => {}, onReload = () => {}, loading }) {
+  const hasOrders = orders.length > 0;
+  const showLoadingPlaceholder = loading && !hasOrders;
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_35px_70px_-55px_rgba(15,23,42,0.45)]">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">Mis pedidos</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Tenés acceso a todos los pedidos vinculados a tu cuenta.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onReload}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              <span>Actualizando…</span>
+            </>
+          ) : (
+            <span>Actualizar</span>
+          )}
+        </button>
+      </div>
+      <div className="mt-6 space-y-3">
+        {showLoadingPlaceholder ? (
+          <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-slate-50/80 py-10">
+            <LoadingSpinner label="Cargando tus pedidos…" size="sm" />
+          </div>
+        ) : null}
+
+        {orders.map((order) => {
+          const isSelected = selectedOrderId ? order.id === selectedOrderId : false;
+          const lastUpdate = formatDate(order.updatedAt || order.createdAt);
+          const itemsCount = Array.isArray(order.items) ? order.items.length : 0;
+          const itemsSummary = itemsCount
+            ? itemsCount === 1
+              ? "1 artículo"
+              : `${itemsCount} artículos`
+            : "Sin artículos registrados";
+          const totalLabel = typeof order.total === "number" && order.total > 0
+            ? formatMoney(order.total)
+            : null;
+
+          return (
+            <button
+              key={order.id}
+              type="button"
+              onClick={() => onSelect(order.id)}
+              className={`w-full rounded-2xl border px-4 py-4 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 ${
+                isSelected
+                  ? "border-sky-300 bg-sky-50 shadow-lg shadow-sky-200/40"
+                  : "border-slate-200 bg-white hover:border-sky-200 hover:bg-sky-50/40"
+              }`}
+              aria-pressed={isSelected}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-slate-900">Pedido #{order.id}</p>
+                  <p className="text-xs text-slate-500">
+                    Actualizado {lastUpdate || "recientemente"}
+                  </p>
+                  <p className="text-xs text-slate-500">{itemsSummary}</p>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <StatusBadge status={order.status} />
+                  {totalLabel ? (
+                    <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
+                      {totalLabel}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+
+        {!showLoadingPlaceholder && !hasOrders ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-10 text-center text-sm text-slate-500">
+            Todavía no generaste pedidos. Explorá el catálogo y creá tu primera orden.
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function EmptySelectionState() {
+  return (
+    <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-10 py-12 text-center text-sm text-slate-600 shadow-[0_35px_70px_-55px_rgba(15,23,42,0.45)]">
+      <h2 className="text-lg font-semibold text-slate-900">Seleccioná un pedido para ver el detalle</h2>
+      <p className="mt-2 text-sm text-slate-600">
+        Tus pedidos aparecerán en la columna izquierda. Una vez que generes uno, vas a poder seguir cada paso desde aquí.
+      </p>
+    </div>
+  );
+}
+
+function LoginPrompt() {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center shadow-[0_45px_90px_-60px_rgba(15,23,42,0.45)]">
+      <h2 className="text-2xl font-semibold text-slate-900">Iniciá sesión para ver tus pedidos</h2>
+      <p className="mt-3 text-sm text-slate-600">
+        Asociamos tus pedidos a tu cuenta para que puedas consultarlos en cualquier momento.
+      </p>
+      <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <Link
+          to="/login"
+          className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/40 transition hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/50"
+        >
+          Iniciar sesión
+        </Link>
+        <Link
+          to="/catalogo"
+          className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60"
+        >
+          Ver catálogo
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function ErrorCallout({ message, onRetry, loading }) {
+  return (
+    <div className="rounded-3xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm text-rose-700 shadow-[0_20px_40px_-35px_rgba(225,29,72,0.45)]">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="font-medium">{message}</p>
+        {onRetry ? (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-xs font-semibold text-rose-600 transition hover:border-rose-300 hover:bg-rose-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/60 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <span>Reintentando…</span>
+              </>
+            ) : (
+              <span>Intentar nuevamente</span>
+            )}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function SupportCard() {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-600 shadow-[0_35px_70px_-55px_rgba(15,23,42,0.45)]">
+      <h3 className="text-lg font-semibold text-slate-900">¿No encontrás alguno de tus pedidos?</h3>
+      <ul className="mt-3 list-disc space-y-2 pl-5">
+        <li>Verificá si generaste la orden con otro correo electrónico o usuario.</li>
+        <li>Los pedidos creados como invitado no aparecen aquí hasta que los asociemos a tu cuenta.</li>
+        <li>
+          Escribinos a <a className="text-sky-600 underline" href="mailto:ventas@samuraibicis.com">ventas@samuraibicis.com</a> y te ayudamos al instante.
+        </li>
+      </ul>
+    </div>
+  );
+}
+
 export default function OrderStatusPage() {
-  const [orderId, setOrderId] = useState("");
-  const [email, setEmail] = useState("");
+  const { user, loading: authLoading } = useAuth();
+  const [orders, setOrders] = useState([]);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [order, setOrder] = useState(null);
-  const [submitted, setSubmitted] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  async function onSubmit(event) {
-    event.preventDefault();
-    setSubmitted(true);
-    setError("");
-    const trimmedId = orderId.trim();
-    const trimmedEmail = email.trim();
+  const uid = user?.uid ?? null;
 
-    if (!trimmedId) {
-      setOrder(null);
-      setError("Ingresá el número de pedido para continuar.");
-      return;
+  useEffect(() => {
+    let active = true;
+
+    if (authLoading) {
+      return () => {
+        active = false;
+      };
+    }
+
+    if (!uid) {
+      setOrders([]);
+      setSelectedOrderId(null);
+      setError("");
+      setLoading(false);
+      return () => {
+        active = false;
+      };
     }
 
     setLoading(true);
-    try {
-      const result = await getOrderStatus(trimmedId, { email: trimmedEmail });
-      setOrder(result);
-    } catch (err) {
-      console.error(err);
-      setOrder(null);
-      setError(err?.message || "No pudimos recuperar el estado del pedido.");
-    } finally {
-      setLoading(false);
+    setError("");
+
+    listCustomerOrders(uid)
+      .then((results) => {
+        if (!active) return;
+        setOrders(results);
+        setSelectedOrderId((current) => {
+          if (current && results.some((order) => order.id === current)) {
+            return current;
+          }
+          return results.length ? results[0].id : null;
+        });
+      })
+      .catch((err) => {
+        console.error(err);
+        if (!active) return;
+        setOrders([]);
+        setSelectedOrderId(null);
+        setError(err?.message || "No pudimos recuperar tus pedidos.");
+      })
+      .finally(() => {
+        if (!active) return;
+        setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authLoading, uid, reloadKey]);
+
+  const selectedOrder = useMemo(() => {
+    if (!orders.length) return null;
+    if (selectedOrderId) {
+      const found = orders.find((order) => order.id === selectedOrderId);
+      if (found) return found;
     }
-  }
+    return orders[0] || null;
+  }, [orders, selectedOrderId]);
+
+  const hasOrders = orders.length > 0;
+
+  const handleRetry = () => {
+    if (!loading) {
+      setReloadKey((value) => value + 1);
+    }
+  };
 
   return (
     <div className="bg-slate-50 pb-20 pt-16">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-10 shadow-[0_45px_90px_-60px_rgba(15,23,42,0.45)]">
           <div className="absolute -left-32 bottom-0 h-64 w-64 rounded-full bg-slate-200/60 blur-3xl" />
           <div className="absolute -right-40 top-0 h-72 w-72 rounded-full bg-sky-200/50 blur-3xl" />
@@ -329,87 +544,42 @@ export default function OrderStatusPage() {
               Seguimiento de pedidos
             </div>
             <div className="max-w-3xl space-y-3">
-              <h1 className="text-3xl font-semibold text-slate-900">Consultá el estado de tu pedido</h1>
+              <h1 className="text-3xl font-semibold text-slate-900">Mis pedidos</h1>
               <p className="text-sm text-slate-600">
-                Ingresá el código de pedido que recibiste por correo y, opcionalmente, tu email para validar la búsqueda. Te
-                mostramos el avance en tiempo real y cada próxima acción.
+                Consultá el estado de cada pedido que generaste con tu cuenta. Podés actualizar la información cuando quieras.
               </p>
             </div>
           </div>
         </section>
 
         <section className="relative z-10 -mt-12 rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_45px_90px_-65px_rgba(15,23,42,0.45)]">
-          <form className="space-y-6" onSubmit={onSubmit} aria-busy={loading}>
-            <div className="grid gap-6 sm:grid-cols-[2fr_2fr_auto]">
-              <div className="space-y-2">
-                <label htmlFor="order-id" className="block text-sm font-medium text-slate-700">
-                  Número de pedido
-                </label>
-                <input
-                  id="order-id"
-                  name="order-id"
-                  autoComplete="off"
-                  value={orderId}
-                  onChange={(event) => setOrderId(event.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-400/40"
-                  placeholder="Ej: ABC12345"
-                  disabled={loading}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="order-email" className="block text-sm font-medium text-slate-700">
-                  Correo asociado <span className="text-slate-400">(opcional)</span>
-                </label>
-                <input
-                  id="order-email"
-                  name="order-email"
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-400/40"
-                  placeholder="tuemail@empresa.com"
-                  disabled={loading}
-                />
-                <p className="text-xs text-slate-500">
-                  Solo lo utilizamos para confirmar que el pedido es tuyo. Si no lo recordás, podés dejar este campo vacío.
-                </p>
-              </div>
-              <div className="flex items-end">
-                <button
-                  type="submit"
-                  className="inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-900 to-sky-900 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/40 transition hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-indigo-400/60 disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={loading}
-                >
-                  <BusyButtonContent busy={loading} busyLabel="Buscando…" label="Consultar pedido" />
-                </button>
-              </div>
+          {authLoading ? (
+            <div className="flex min-h-[240px] items-center justify-center">
+              <LoadingSpinner label="Preparando tu espacio de pedidos…" />
             </div>
-            {error ? (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
-                {error}
+          ) : uid ? (
+            <div className="space-y-8">
+              {error ? (
+                <ErrorCallout message={error} onRetry={handleRetry} loading={loading} />
+              ) : null}
+              <div className="grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.9fr)]">
+                <OrdersList
+                  orders={orders}
+                  selectedOrderId={selectedOrder?.id || selectedOrderId}
+                  onSelect={setSelectedOrderId}
+                  onReload={handleRetry}
+                  loading={loading}
+                />
+                <div>
+                  {selectedOrder ? <OrderSummary order={selectedOrder} /> : <EmptySelectionState />}
+                </div>
               </div>
-            ) : null}
-          </form>
+              {!hasOrders ? <SupportCard /> : null}
+            </div>
+          ) : (
+            <LoginPrompt />
+          )}
         </section>
-
-        {order ? (
-          <div className="mt-12">
-            <OrderSummary order={order} />
-          </div>
-        ) : null}
-
-        {!order && submitted && !loading && !error ? (
-          <div className="mt-12 rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-600 shadow-[0_35px_70px_-55px_rgba(15,23,42,0.45)]">
-            <h2 className="text-lg font-semibold text-slate-900">¿No ves tu pedido?</h2>
-            <ul className="mt-3 list-disc space-y-2 pl-5">
-              <li>Verificá que el código esté tal como lo recibiste (respetá guiones y mayúsculas si los tiene).</li>
-              <li>Revisá la bandeja de spam: reenviamos el correo con el número de pedido automáticamente.</li>
-              <li>Si necesitás ayuda inmediata, escribinos a <a className="text-sky-600 underline" href="mailto:ventas@samuraibicis.com">ventas@samuraibicis.com</a>.</li>
-            </ul>
-          </div>
-        ) : null}
       </div>
     </div>
   );
