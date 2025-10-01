@@ -1,7 +1,21 @@
 // src/services/orders.ts
 import {
-  collection, doc, getDocs, limit, orderBy, query,
-  serverTimestamp, Timestamp, updateDoc, where, startAfter, QueryDocumentSnapshot, DocumentData, runTransaction
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  serverTimestamp,
+  Timestamp,
+  updateDoc,
+  where,
+  startAfter,
+  QueryDocumentSnapshot,
+  DocumentData,
+  runTransaction,
+  DocumentSnapshot,
 } from "firebase/firestore";
 import { auth } from "../firebase";
 import { db } from "../firebase";
@@ -17,6 +31,60 @@ function sum(items: OrderItem[]) {
 }
 
 export type PaymentMethod = "cheque" | "transferencia";
+
+export type OrderStatus = "solicitud" | "pendiente" | "pagada" | "cancelada";
+
+export type OrderRecord = {
+  id: string;
+  status: OrderStatus;
+  paymentMethod?: PaymentMethod | null;
+  total?: number;
+  customer?: (Customer & { uid?: string | null }) | null;
+  items?: OrderItem[];
+  createdAt?: Date | null;
+  updatedAt?: Date | null;
+  paidAt?: Date | null;
+};
+
+function toDate(value: unknown): Date | null {
+  if (value instanceof Timestamp) return value.toDate();
+  return null;
+}
+
+const allowedStatuses: OrderStatus[] = ["solicitud", "pendiente", "pagada", "cancelada"];
+
+function normalizeStatus(value: unknown): OrderStatus {
+  const raw = String(value || "");
+  return (allowedStatuses.includes(raw as OrderStatus) ? raw : "solicitud") as OrderStatus;
+}
+
+function normalizeItems(rawItems: unknown): OrderItem[] {
+  if (!Array.isArray(rawItems)) return [];
+  return rawItems
+    .map((item: any) => ({
+      id: String(item?.id || ""),
+      name: String(item?.name || ""),
+      price: Number(item?.price ?? 0),
+      qty: Number(item?.qty ?? 0),
+    }))
+    .filter((it) => it.id && it.name);
+}
+
+function toOrderRecord(id: string, snap: DocumentSnapshot<DocumentData>): OrderRecord {
+  const data = snap.data() as any;
+
+  return {
+    id,
+    status: normalizeStatus(data?.status),
+    paymentMethod: (data?.paymentMethod ?? null) as PaymentMethod | null,
+    total: Number(data?.total ?? 0) || undefined,
+    customer: data?.customer ?? null,
+    items: normalizeItems(data?.items),
+    createdAt: toDate(data?.createdAt),
+    updatedAt: toDate(data?.updatedAt),
+    paidAt: toDate(data?.paidAt),
+  };
+}
 
 export async function createOrder({
   customer, items, paymentMethod
@@ -121,5 +189,43 @@ export async function updateOrderStatus(orderId: string, newStatus: "pendiente" 
   const patch: any = { status: newStatus, updatedAt: serverTimestamp() };
   if (newStatus === "pagada") patch.paidAt = serverTimestamp();
   await updateDoc(doc(db, "orders", orderId), patch);
+}
+
+export async function getOrderStatus(orderId: string, opts: { email?: string } = {}): Promise<OrderRecord> {
+  const trimmedId = String(orderId || "").trim();
+  if (!trimmedId) {
+    throw new Error("Ingresá un número de pedido válido.");
+  }
+
+  const snap = await getDoc(doc(ORDERS, trimmedId));
+  if (!snap.exists()) {
+    throw new Error("No encontramos un pedido con ese código.");
+  }
+
+  const data = snap.data() as any;
+  const inputEmail = String(opts.email || "").trim().toLowerCase();
+  const orderEmail = String(data?.customer?.email || "").trim().toLowerCase();
+  if (inputEmail && orderEmail && inputEmail !== orderEmail) {
+    throw new Error("El correo electrónico no coincide con la orden.");
+  }
+
+  return toOrderRecord(snap.id, snap);
+}
+
+export async function listCustomerOrders(uid: string): Promise<OrderRecord[]> {
+  const trimmedUid = String(uid || "").trim();
+  if (!trimmedUid) {
+    throw new Error("No encontramos la cuenta del cliente para consultar los pedidos.");
+  }
+
+  const q = query(
+    ORDERS,
+    where("customer.uid", "==", trimmedUid),
+    orderBy("createdAt", "desc"),
+    limit(50),
+  );
+
+  const snap = await getDocs(q);
+  return snap.docs.map((docSnap) => toOrderRecord(docSnap.id, docSnap));
 }
 
