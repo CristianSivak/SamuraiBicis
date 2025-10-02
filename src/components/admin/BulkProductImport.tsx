@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import { createProduct, updateProduct } from "../../services/products";
 import type { ProductType } from "../../services/productTypes";
-
-const SHEET_JS_URL = "https://cdn.sheetjs.com/xlsx-latest/package/xlsx.mjs";
+import { ensureSheetJs } from "../../utils/sheetjs";
 const BATCH_SIZE = 5;
 
 type NormalizedRow = {
@@ -47,13 +46,6 @@ const HEADER_ALIASES: Record<string, keyof NormalizedRow> = {
 };
 
 const REQUIRED_FIELDS: Array<keyof NormalizedRow> = ["name", "price", "stock"];
-
-type SheetjsModule = {
-  read: (data: ArrayBuffer | string, opts: Record<string, unknown>) => any;
-  utils: {
-    sheet_to_json: (sheet: any, opts?: Record<string, unknown>) => any[];
-  };
-};
 
 type PreparedPayload = {
   action: "create" | "update";
@@ -101,15 +93,6 @@ type BulkProductImportProps = {
   onCompleted?: (summary: ImportSummary) => void;
   productTypes: ProductType[];
 };
-
-let cachedModule: SheetjsModule | null = null;
-
-async function ensureSheetJs(): Promise<SheetjsModule> {
-  if (cachedModule) return cachedModule;
-  const mod = (await import(/* @vite-ignore */ SHEET_JS_URL)) as SheetjsModule;
-  cachedModule = mod;
-  return mod;
-}
 
 function normalizeHeader(header: unknown) {
   return String(header || "")

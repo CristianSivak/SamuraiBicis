@@ -9,6 +9,7 @@ import {
 } from "../../services/products";
 import { LoadingOverlay } from "../../components/ui/LoadingIndicators";
 import { subscribeProductTypes } from "../../services/productTypes";
+import { ensureSheetJs } from "../../utils/sheetjs";
 
 const statusStyles = {
   true: "border border-emerald-200 bg-emerald-50 text-emerald-600",
@@ -46,6 +47,8 @@ export default function Products() {
   const [productTypes, setProductTypes] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState("");
   const [editing, setEditing] = useState(null);
 
   useEffect(() => {
@@ -119,6 +122,37 @@ export default function Products() {
     setLoading(false);
   }
 
+  async function handleExport() {
+    if (exporting || filtered.length === 0) return;
+    setExporting(true);
+    setExportMessage("");
+    try {
+      const sheetjs = await ensureSheetJs();
+      const now = new Date();
+      const filename = `productos-${now.toISOString().slice(0, 10)}.xlsx`;
+      const rowsForSheet = filtered.map((product) => ({
+        id: product.id || "",
+        nombre: product.name || "",
+        categoria: product.productTypeTitle || product.category || "general",
+        precio: Number(product.price ?? 0),
+        stock: Number(product.stock ?? 0),
+        activo: product.active ? "sí" : "no",
+      }));
+      const worksheet = sheetjs.utils.json_to_sheet(rowsForSheet, {
+        header: ["id", "nombre", "categoria", "precio", "stock", "activo"],
+      });
+      const workbook = sheetjs.utils.book_new();
+      sheetjs.utils.book_append_sheet(workbook, worksheet, "Productos");
+      sheetjs.writeFile(workbook, filename);
+      setExportMessage(`Exportación generada: ${filename}`);
+    } catch (error) {
+      console.error("Error exporting products", error);
+      setExportMessage("Ocurrió un error al exportar los productos.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="space-y-8">
       <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_45px_80px_-50px_rgba(15,23,42,0.2)]">
@@ -137,6 +171,13 @@ export default function Products() {
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <button
+              onClick={handleExport}
+              disabled={exporting || filtered.length === 0}
+              className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {exporting ? "Exportando…" : "Exportar Excel"}
+            </button>
+            <button
               onClick={() => setImportOpen(true)}
               className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-sky-600"
             >
@@ -151,6 +192,12 @@ export default function Products() {
           </div>
         </div>
       </section>
+
+      {exportMessage && (
+        <div className="rounded-3xl border border-sky-200 bg-sky-50 px-6 py-4 text-sm text-sky-700">
+          {exportMessage}
+        </div>
+      )}
 
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_35px_65px_-45px_rgba(15,23,42,0.18)]">
         <div className="grid gap-4 md:grid-cols-4">
