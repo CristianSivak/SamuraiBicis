@@ -27,6 +27,7 @@ export default function App() {
       {/* Bloque ADMIN con su layout */}
       <ProtectedRoute
         path="/admin"
+        allowedRoles={["admin"]}
         render={() => (
           <AdminLayout>
             <Switch>
