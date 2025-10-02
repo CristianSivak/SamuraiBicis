@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import ProductForm from "../../components/admin/ProductForm";
+import BulkProductImport from "../../components/admin/BulkProductImport";
 import {
   createProduct,
   updateProduct,
@@ -44,6 +45,7 @@ export default function Products() {
   const [category, setCategory] = useState("all");
   const [productTypes, setProductTypes] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState(null);
 
   useEffect(() => {
@@ -133,12 +135,20 @@ export default function Products() {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => setModalOpen(true)}
-            className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-200/60 transition hover:-translate-y-0.5"
-          >
-            Nuevo producto
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <button
+              onClick={() => setImportOpen(true)}
+              className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-sky-600"
+            >
+              Importar Excel
+            </button>
+            <button
+              onClick={() => setModalOpen(true)}
+              className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-200/60 transition hover:-translate-y-0.5"
+            >
+              Nuevo producto
+            </button>
+          </div>
         </div>
       </section>
 
@@ -257,6 +267,19 @@ export default function Products() {
 
       <ProductForm open={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleCreate} />
       <ProductForm open={!!editing} initial={editing} onClose={() => setEditing(null)} onSubmit={handleUpdate} />
+      {importOpen && (
+        <BulkProductImport
+          open={importOpen}
+          productTypes={productTypes}
+          onClose={() => setImportOpen(false)}
+          onCompleted={(result) => {
+            setImportOpen(false);
+            if (result.attempted > result.failed) {
+              setLoading(true);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
