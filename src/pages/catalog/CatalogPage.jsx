@@ -3,6 +3,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { listProducts } from "../../services/products";
 import { createOrder } from "../../services/orders";
 import { LoadingOverlay, BusyButtonContent } from "../../components/ui/LoadingIndicators";
+import { useAuth } from "../../auth/AuthContext";
+import Price from "../../modules/products/components/Price";
+import { calculateDiscountedPrice } from "../../modules/products/utils/pricing";
+import { useCustomerTypeOfUser } from "../../modules/products/hooks/useCustomerTypeOfUser";
 
 const money = (n) =>
   Number(n || 0).toLocaleString("es-AR", { style: "currency", currency: "ARS" });
@@ -20,6 +24,11 @@ export default function CatalogPage({ isLoggedIn = false }) {
   const [selectedCats, setSelectedCats] = useState([]);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("featured");
+
+  const { profile } = useAuth();
+  const customerTypeId = profile?.tipoClienteId || null;
+  const { customerType } = useCustomerTypeOfUser(customerTypeId);
+  const discountPercentage = customerType?.activo ? customerType.descuentoPorcentaje : 0;
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,11 +78,14 @@ export default function CatalogPage({ isLoggedIn = false }) {
           continue;
         }
         const clampedQty = Math.min(item.qty, stock);
+        const precioLista = Number(
+          product?.precioLista ?? product?.price ?? item.precioLista ?? item.price ?? 0,
+        );
         if (clampedQty !== item.qty) {
           changed = true;
-          next.push({ ...item, qty: clampedQty });
+          next.push({ ...item, qty: clampedQty, precioLista });
         } else {
-          next.push(item);
+          next.push({ ...item, precioLista });
         }
       }
       if (!changed && next.length === prev.length) return prev;
@@ -124,10 +136,10 @@ export default function CatalogPage({ isLoggedIn = false }) {
         });
         break;
       case "priceAsc":
-        list = [...list].sort((a, b) => (a.price || 0) - (b.price || 0));
+        list = [...list].sort((a, b) => (a.precioLista || a.price || 0) - (b.precioLista || b.price || 0));
         break;
       case "priceDesc":
-        list = [...list].sort((a, b) => (b.price || 0) - (a.price || 0));
+        list = [...list].sort((a, b) => (b.precioLista || b.price || 0) - (a.precioLista || a.price || 0));
         break;
       default:
         break;
@@ -160,7 +172,7 @@ export default function CatalogPage({ isLoggedIn = false }) {
         {
           id: p.id,
           name: p.name,
-          price: Number(p.price || 0),
+          precioLista: Number(p.precioLista ?? p.price ?? 0),
           imageUrl: p.imageUrl || "",
           qty: 1,
         },
@@ -183,8 +195,13 @@ export default function CatalogPage({ isLoggedIn = false }) {
   const clearCart = () => setCart([]);
 
   const cartTotal = useMemo(
-    () => cart.reduce((acc, it) => acc + (it.price || 0) * it.qty, 0),
-    [cart]
+    () =>
+      cart.reduce(
+        (acc, it) =>
+          acc + calculateDiscountedPrice(it.precioLista || 0, discountPercentage) * it.qty,
+        0
+      ),
+    [cart, discountPercentage]
   );
 
   async function submitOrder(data) {
@@ -201,7 +218,12 @@ export default function CatalogPage({ isLoggedIn = false }) {
       return;
     }
 
-    const orderItems = cart.map(({ id, name, price, qty }) => ({ id, name, price, qty }));
+    const orderItems = cart.map(({ id, name, precioLista, qty }) => ({
+      id,
+      name,
+      price: precioLista,
+      qty,
+    }));
     const shortages = orderItems.filter((item) => {
       const product = items.find((p) => p.id === item.id);
       const available = Number(product?.stock ?? 0);
@@ -361,7 +383,12 @@ export default function CatalogPage({ isLoggedIn = false }) {
               {showSkeleton ? (
                 <ProductGridSkeleton />
               ) : (
-                <ProductGrid items={filtered} isLoggedIn={isLoggedIn} onAdd={addToCart} />
+                <ProductGrid
+                  items={filtered}
+                  isLoggedIn={isLoggedIn}
+                  onAdd={addToCart}
+                  customerTypeId={customerTypeId}
+                />
               )}
             </div>
           </section>
@@ -401,6 +428,8 @@ export default function CatalogPage({ isLoggedIn = false }) {
           setOrderResult(null);
         }}
         products={items}
+        customerTypeId={customerTypeId}
+        discountPercentage={discountPercentage}
       />
 
       <OrderModal
@@ -548,7 +577,7 @@ function ActiveFilters({ categories, selected, onRemove, onClear }) {
   );
 }
 
-function ProductGrid({ items, isLoggedIn, onAdd }) {
+function ProductGrid({ items, isLoggedIn, onAdd, customerTypeId }) {
   if (!items.length) {
     return (
       <div className="rounded-3xl border border-dashed border-slate-300/60 bg-white p-12 text-center text-sm text-slate-500">
@@ -560,7 +589,12 @@ function ProductGrid({ items, isLoggedIn, onAdd }) {
     <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {items.map((p) => (
         <li key={p.id}>
-          <ProductCard product={p} isLoggedIn={isLoggedIn} onAdd={onAdd} />
+          <ProductCard
+            product={p}
+            isLoggedIn={isLoggedIn}
+            onAdd={onAdd}
+            customerTypeId={customerTypeId}
+          />
         </li>
       ))}
     </ul>
@@ -586,7 +620,7 @@ function ProductGridSkeleton({ count = 8 }) {
   );
 }
 
-function ProductCard({ product, onAdd }) {
+function ProductCard({ product, onAdd, customerTypeId }) {
   const available = (product.stock ?? 0) > 0;
   return (
     <article className="group relative h-full overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_30px_60px_-35px_rgba(15,23,42,0.18)] transition duration-200 hover:-translate-y-1 hover:border-sky-500/60">
@@ -620,7 +654,10 @@ function ProductCard({ product, onAdd }) {
             <span className="h-2 w-2 rounded-full bg-current" />
             {available ? "Disponible" : "Sin stock"}
           </span>
-          <span className="text-sm font-semibold text-slate-900">{money(product.price)}</span>
+          <Price
+            base={Number(product.precioLista ?? product.price ?? 0)}
+            customerTypeId={customerTypeId}
+          />
         </div>
         <button
           disabled={!available}
@@ -638,7 +675,19 @@ function ProductCard({ product, onAdd }) {
   );
 }
 
-function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn, onCheckout, products = [] }) {
+function CartDrawer({
+  open,
+  onClose,
+  cart,
+  setQty,
+  removeItem,
+  total,
+  isLoggedIn,
+  onCheckout,
+  products = [],
+  customerTypeId,
+  discountPercentage = 0,
+}) {
   const getAvailable = (id) => {
     const product = products.find((p) => p.id === id);
     return Number(product?.stock ?? 0);
@@ -679,6 +728,13 @@ function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn
                 const availableStock = getAvailable(it.id);
                 const disableDecrease = it.qty <= 1;
                 const disableIncrease = availableStock > 0 ? it.qty >= availableStock : true;
+                const unitFinal = calculateDiscountedPrice(
+                  it.precioLista || 0,
+                  discountPercentage,
+                );
+                const baseTotal = Number(it.precioLista || 0) * it.qty;
+                const finalTotal = unitFinal * it.qty;
+                const hasDiscount = discountPercentage > 0;
                 return (
                   <li key={it.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="h-16 w-16 overflow-hidden rounded-2xl bg-slate-100">
@@ -690,7 +746,11 @@ function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn
                     </div>
                     <div className="flex-1 text-sm text-slate-600">
                       <div className="font-medium text-slate-900">{it.name}</div>
-                      <div className="text-xs text-slate-500">{money(it.price)} c/u</div>
+                      <Price
+                        base={Number(it.precioLista || 0)}
+                        customerTypeId={customerTypeId}
+                        className="text-xs"
+                      />
                       <div className="mt-3 inline-flex items-center gap-2">
                         <button
                           className="rounded-xl border border-slate-300 px-2 text-sm text-slate-600 transition hover:bg-slate-100 disabled:opacity-50"
@@ -723,7 +783,10 @@ function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn
                       >
                         Quitar
                       </button>
-                      <div className="text-sm font-semibold text-slate-900">{money(it.price * it.qty)}</div>
+                      <div className="text-sm font-semibold text-slate-900">{money(finalTotal)}</div>
+                      {hasDiscount && (
+                        <div className="text-xs text-slate-400 line-through">{money(baseTotal)}</div>
+                      )}
                     </div>
                   </li>
                 );

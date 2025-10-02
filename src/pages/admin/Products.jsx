@@ -1,12 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import ProductForm from "../../components/admin/ProductForm";
-import {
-  createProduct,
-  updateProduct,
-  deleteProductById,
-  subscribeProducts,
-} from "../../services/products";
+import { deleteProductById, subscribeProducts } from "../../services/products";
 import { LoadingOverlay } from "../../components/ui/LoadingIndicators";
+import { listProductTypes } from "../../modules/admin/product-types/services/productTypes.api";
 
 const statusStyles = {
   true: "border border-emerald-200 bg-emerald-50 text-emerald-600",
@@ -25,6 +21,7 @@ export default function Products() {
   const [category, setCategory] = useState("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [typesById, setTypesById] = useState({});
 
   useEffect(() => {
     setLoading(true);
@@ -39,6 +36,26 @@ export default function Products() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const { items } = await listProductTypes({});
+        if (!active) return;
+        const map = items.reduce((acc, item) => {
+          acc[item.id] = item.nombre;
+          return acc;
+        }, {});
+        setTypesById(map);
+      } catch (error) {
+        console.error("Error cargando tipos de producto", error);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const filtered = useMemo(() => {
     const nq = (q || "").trim().toLowerCase();
     return rows.filter((p) => {
@@ -48,20 +65,6 @@ export default function Products() {
       return text && st && cat;
     });
   }, [rows, q, onlyActive, category]);
-
-  async function handleCreate(payload) {
-    setLoading(true);
-    await createProduct(payload);
-    setLoading(false);
-    setModalOpen(false);
-  }
-
-  async function handleUpdate(payload) {
-    setLoading(true);
-    await updateProduct(editing.id, payload);
-    setLoading(false);
-    setEditing(null);
-  }
 
   async function handleDelete(id) {
     if (!confirm("¿Eliminar este producto?")) return;
@@ -143,7 +146,8 @@ export default function Products() {
             <tr>
               <th className="px-4 py-3 text-left">Producto</th>
               <th className="px-4 py-3 text-left">Categoría</th>
-              <th className="px-4 py-3 text-right">Precio</th>
+              <th className="px-4 py-3 text-left">Tipo</th>
+              <th className="px-4 py-3 text-right">Precio lista</th>
               <th className="px-4 py-3 text-right">Stock</th>
               <th className="px-4 py-3 text-left">Estado</th>
               <th className="px-4 py-3 text-right">Acciones</th>
@@ -166,7 +170,8 @@ export default function Products() {
                   </div>
                 </td>
                 <td className="px-4 py-4 capitalize text-slate-500">{p.category || "general"}</td>
-                <td className="px-4 py-4 text-right font-semibold text-slate-900">{money(p.price)}</td>
+                <td className="px-4 py-4 text-slate-600">{typesById[p.tipoProductoId] || "—"}</td>
+                <td className="px-4 py-4 text-right font-semibold text-slate-900">{money(p.precioLista)}</td>
                 <td className="px-4 py-4 text-right text-slate-500">{p.stock ?? 0}</td>
                 <td className="px-4 py-4">
                   <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ${statusStyles[p.active]}`}>
@@ -203,8 +208,17 @@ export default function Products() {
         </table>
       </div>
 
-      <ProductForm open={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleCreate} />
-      <ProductForm open={!!editing} initial={editing} onClose={() => setEditing(null)} onSubmit={handleUpdate} />
+      <ProductForm
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSaved={() => setModalOpen(false)}
+      />
+      <ProductForm
+        open={!!editing}
+        initial={editing}
+        onClose={() => setEditing(null)}
+        onSaved={() => setEditing(null)}
+      />
     </div>
   );
 }

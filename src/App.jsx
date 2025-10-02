@@ -17,6 +17,10 @@ import Users from './pages/admin/Users'
 import Products from './pages/admin/Products'
 import Orders from './pages/admin/Orders'
 import AdminNotFound from './pages/admin/AdminNotFound'
+import CustomerTypesList from './modules/admin/customer-types/pages/CustomerTypesList'
+import CustomerTypeForm from './modules/admin/customer-types/pages/CustomerTypeForm'
+import ProductTypesList from './modules/admin/product-types/pages/ProductTypesList'
+import ProductTypeForm from './modules/admin/product-types/pages/ProductTypeForm'
 
 
 export default function App() {
@@ -29,6 +33,12 @@ export default function App() {
           <AdminLayout>
             <Switch>
               <Route exact path="/admin" component={AdminDashboard} />
+              <Route exact path="/admin/tipos-clientes" component={CustomerTypesList} />
+              <Route exact path="/admin/tipos-clientes/nuevo" component={CustomerTypeForm} />
+              <Route path="/admin/tipos-clientes/:id" component={CustomerTypeForm} />
+              <Route exact path="/admin/tipos-producto" component={ProductTypesList} />
+              <Route exact path="/admin/tipos-producto/nuevo" component={ProductTypeForm} />
+              <Route path="/admin/tipos-producto/:id" component={ProductTypeForm} />
               <Route path="/admin/users" component={Users} />
               <Route path="/admin/products" component={Products} />
               <Route path="/admin/orders" component={Orders} />

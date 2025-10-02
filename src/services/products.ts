@@ -11,30 +11,55 @@ export type Product = {
   id?: string;
   name: string;
   nameLower: string;
-  price: number;
+  precioLista: number;
+  price?: number; // compatibilidad legacy
+  tipoProductoId: string;
   stock: number;
   category: string;
   active: boolean;
   imageUrl: string;
-  createdAt?: any; updatedAt?: any;
+  createdAt?: any;
+  updatedAt?: any;
 };
 
 const colRef = collection(db, "products");
 const normalize = (s: string) => (s || "").trim().toLowerCase();
 
 export async function createProduct({
-  name, price, stock, category, active, imageFile
+  name,
+  precioLista,
+  price,
+  stock,
+  category,
+  active,
+  tipoProductoId,
+  imageFile,
 }: {
-  name: string; price?: number | string; stock?: number | string;
-  category?: string; active?: boolean; imageFile?: File | null;
+  name: string;
+  precioLista?: number | string;
+  price?: number | string;
+  stock?: number | string;
+  category?: string;
+  active?: boolean;
+  tipoProductoId: string;
+  imageFile?: File | null;
 }) {
+  if (!tipoProductoId) {
+    throw new Error("El tipo de producto es obligatorio");
+  }
+  const basePrice = Number(precioLista ?? price ?? 0);
+  if (!Number.isFinite(basePrice) || basePrice <= 0) {
+    throw new Error("Ingresá un precio de lista válido mayor a 0");
+  }
   const base = {
     name: name || "",
     nameLower: normalize(name),
-    price: Number(price ?? 0),
+    precioLista: basePrice,
+    price: basePrice,
     stock: Number(stock ?? 0),
     category: category || "general",
     active: active ?? true,
+    tipoProductoId,
     imageUrl: "",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -49,17 +74,43 @@ export async function createProduct({
 }
 
 export async function updateProduct(id: string, {
-  name, price, stock, category, active, imageFile
+  name,
+  precioLista,
+  price,
+  stock,
+  category,
+  active,
+  tipoProductoId,
+  imageFile
 }: {
-  name?: string; price?: number | string; stock?: number | string;
-  category?: string; active?: boolean; imageFile?: File | null;
+  name?: string;
+  precioLista?: number | string;
+  price?: number | string;
+  stock?: number | string;
+  category?: string;
+  active?: boolean;
+  tipoProductoId?: string;
+  imageFile?: File | null;
 }) {
   const patch: any = { updatedAt: serverTimestamp() };
   if (name !== undefined) { patch.name = name; patch.nameLower = normalize(name); }
-  if (price !== undefined) patch.price = Number(price);
+  if (precioLista !== undefined || price !== undefined) {
+    const basePrice = Number(precioLista ?? price ?? 0);
+    if (!Number.isFinite(basePrice) || basePrice <= 0) {
+      throw new Error("Ingresá un precio de lista válido mayor a 0");
+    }
+    patch.precioLista = basePrice;
+    patch.price = basePrice;
+  }
   if (stock !== undefined) patch.stock = Number(stock);
   if (category !== undefined) patch.category = category || "general";
   if (active !== undefined) patch.active = !!active;
+  if (tipoProductoId !== undefined) {
+    if (!tipoProductoId) {
+      throw new Error("El tipo de producto es obligatorio");
+    }
+    patch.tipoProductoId = tipoProductoId;
+  }
   if (imageFile) { const url = await uploadProductImage(id, imageFile); patch.imageUrl = url; }
   await updateDoc(doc(db, "products", id), patch);
 }
@@ -113,7 +164,17 @@ export async function listProducts({
   const pagedQ = cursor ? query(baseQ, startAfter(cursor)) : baseQ;
 
   const snap = await getDocs(pagedQ);
-  const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+  const items = snap.docs.map((d) => {
+    const data = d.data() as any;
+    const precioLista = Number(data.precioLista ?? data.price ?? 0);
+    return {
+      id: d.id,
+      ...data,
+      precioLista,
+      price: precioLista,
+      tipoProductoId: data.tipoProductoId || '',
+    } as Product;
+  });
   const nextCursor = snap.docs.length ? snap.docs[snap.docs.length - 1] : null;
   return { items, nextCursor };
 }
@@ -143,7 +204,17 @@ onError?: (error: Error) => void,
   return onSnapshot(
     baseQ,
     snap => {
-      const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+      const items = snap.docs.map((d) => {
+        const data = d.data() as any;
+        const precioLista = Number(data.precioLista ?? data.price ?? 0);
+        return {
+          id: d.id,
+          ...data,
+          precioLista,
+          price: precioLista,
+          tipoProductoId: data.tipoProductoId || '',
+        } as Product;
+      });
       onChange(items);
     },
     onError,

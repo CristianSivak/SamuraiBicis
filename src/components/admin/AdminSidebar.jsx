@@ -4,6 +4,8 @@ const items = [
   { to: "/admin", label: "Dashboard", icon: DashboardIcon, exact: true },
   { to: "/admin/users", label: "Usuarios", icon: UsersIcon },
   { to: "/admin/products", label: "Productos", icon: BoxIcon },
+  { to: "/admin/tipos-producto", label: "Tipos de producto", icon: TagIcon },
+  { to: "/admin/tipos-clientes", label: "Tipos de clientes", icon: DiscountIcon },
   { to: "/admin/orders", label: "Órdenes", icon: ReceiptIcon },
 ];
 
@@ -90,6 +92,25 @@ function BoxIcon(props) {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
       <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
       <path d="M3.3 7.3 12 12l8.7-4.7" />
+    </svg>
+  );
+}
+
+function TagIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+      <path d="M21 11.5 12.5 20a2 2 0 0 1-2.83 0L3 13.34V3h10.34L21 11.5Z" />
+      <path d="M7 7h.01" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function DiscountIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+      <path d="m5 12 7-7 7 7-7 7-7-7Z" />
+      <path d="M9 12h6" />
+      <path d="M12 9v6" />
     </svg>
   );
 }
