@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function currentRole() {
+      return isSignedIn()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isAdminOrManager() {
+      return currentRole() == 'admin' || currentRole() == 'manager';
+    }
+
+    function isStaff() {
+      return isAdminOrManager() || currentRole() == 'viewer';
+    }
+
+    match /users/{uid} {
+      allow create: if !isSignedIn() || isAdminOrManager();
+      allow read: if isStaff() || (isSignedIn() && request.auth.uid == uid);
+      allow update: if isAdminOrManager() || (isSignedIn() && request.auth.uid == uid);
+      allow delete: if isAdminOrManager();
+    }
+
+    match /orders/{orderId} {
+      allow get: if isStaff()
+        || (isSignedIn() && resource.data.customer.uid == request.auth.uid)
+        || (!isSignedIn() && resource.data.customer.uid == null);
+      allow list: if isStaff();
+      allow create: if isAdminOrManager()
+        || (!isSignedIn()
+          && request.resource.data.status == 'solicitud'
+          && request.resource.data.total == 0
+          && request.resource.data.customer.uid == null)
+        || (isSignedIn()
+          && request.resource.data.customer.uid == request.auth.uid);
+      allow update, delete: if isAdminOrManager();
+    }
+
+    match /products/{productId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdminOrManager();
+    }
+
+    match /customerTypes/{doc} {
+      allow read, write: if isAdminOrManager();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
