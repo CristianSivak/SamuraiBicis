@@ -1,7 +1,9 @@
 // src/pages/catalog/CatalogPage.jsx
 import React, { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../../auth/AuthContext";
 import { listProducts } from "../../services/products";
 import { createOrder } from "../../services/orders";
+import { getCustomerTypeById } from "../../services/customerTypes";
 import { LoadingOverlay, BusyButtonContent } from "../../components/ui/LoadingIndicators";
 
 const money = (n) =>
@@ -15,7 +17,9 @@ const SORTS = [
   { id: "priceDesc", label: "Precio - alto a bajo" },
 ];
 
-export default function CatalogPage({ isLoggedIn = false }) {
+export default function CatalogPage() {
+  const { user, profile } = useAuth();
+  const isLoggedIn = !!user;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [selectedCats, setSelectedCats] = useState([]);
   const [search, setSearch] = useState("");
@@ -30,6 +34,38 @@ export default function CatalogPage({ isLoggedIn = false }) {
   const [orderOpen, setOrderOpen] = useState(false);
   const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [orderResult, setOrderResult] = useState(null);
+  const [discount, setDiscount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const customerTypeId = profile?.customerTypeId;
+
+    if (!customerTypeId) {
+      setDiscount(0);
+      return () => {
+        active = false;
+      };
+    }
+
+    setDiscount(0);
+
+    (async () => {
+      try {
+        const customerType = await getCustomerTypeById(customerTypeId);
+        if (!active) return;
+        const parsedDiscount = Number(customerType?.discount ?? 0);
+        setDiscount(Number.isFinite(parsedDiscount) ? parsedDiscount : 0);
+      } catch (error) {
+        if (!active) return;
+        console.error("Error obteniendo tipo de cliente:", error);
+        setDiscount(0);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [profile?.customerTypeId]);
 
   useEffect(() => {
     let active = true;
@@ -296,7 +332,10 @@ export default function CatalogPage({ isLoggedIn = false }) {
                 </button>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
                   {isLoggedIn ? (
-                    <p>Los precios incluyen tu lista mayorista. Podés enviar el pedido directo al panel.</p>
+                    <p>
+                      Los precios incluyen tu lista mayorista
+                      {discount > 0 ? ` con ${discount}% de descuento activo` : ""}. Podés enviar el pedido directo al panel.
+                    </p>
                   ) : (
                     <p>Si todavía no iniciaste sesión, igual podés enviar tu carrito como solicitud con seguimiento.</p>
                   )}
@@ -361,7 +400,12 @@ export default function CatalogPage({ isLoggedIn = false }) {
               {showSkeleton ? (
                 <ProductGridSkeleton />
               ) : (
-                <ProductGrid items={filtered} isLoggedIn={isLoggedIn} onAdd={addToCart} />
+                <ProductGrid
+                  items={filtered}
+                  isLoggedIn={isLoggedIn}
+                  discount={discount}
+                  onAdd={addToCart}
+                />
               )}
             </div>
           </section>
@@ -386,6 +430,7 @@ export default function CatalogPage({ isLoggedIn = false }) {
         removeItem={removeFromCart}
         total={cartTotal}
         isLoggedIn={isLoggedIn}
+        discount={discount}
         onCheckout={() => {
           const hasIssues = cart.some((item) => {
             const product = items.find((p) => p.id === item.id);
@@ -548,7 +593,7 @@ function ActiveFilters({ categories, selected, onRemove, onClear }) {
   );
 }
 
-function ProductGrid({ items, isLoggedIn, onAdd }) {
+function ProductGrid({ items, isLoggedIn, discount = 0, onAdd }) {
   if (!items.length) {
     return (
       <div className="rounded-3xl border border-dashed border-slate-300/60 bg-white p-12 text-center text-sm text-slate-500">
@@ -560,7 +605,7 @@ function ProductGrid({ items, isLoggedIn, onAdd }) {
     <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {items.map((p) => (
         <li key={p.id}>
-          <ProductCard product={p} isLoggedIn={isLoggedIn} onAdd={onAdd} />
+          <ProductCard product={p} isLoggedIn={isLoggedIn} discount={discount} onAdd={onAdd} />
         </li>
       ))}
     </ul>
@@ -586,8 +631,9 @@ function ProductGridSkeleton({ count = 8 }) {
   );
 }
 
-function ProductCard({ product, onAdd }) {
+function ProductCard({ product, onAdd, discount = 0 }) {
   const available = (product.stock ?? 0) > 0;
+  const effectiveDiscount = Number.isFinite(Number(discount)) ? Number(discount) : 0;
   return (
     <article className="group relative h-full overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_30px_60px_-35px_rgba(15,23,42,0.18)] transition duration-200 hover:-translate-y-1 hover:border-sky-500/60">
       <div className="aspect-square w-full overflow-hidden rounded-2xl bg-slate-100">
@@ -622,6 +668,9 @@ function ProductCard({ product, onAdd }) {
           </span>
           <span className="text-sm font-semibold text-slate-900">{money(product.price)}</span>
         </div>
+        {effectiveDiscount > 0 ? (
+          <p className="text-xs text-emerald-600">Descuento activo del {effectiveDiscount}%.</p>
+        ) : null}
         <button
           disabled={!available}
           onClick={() => onAdd(product)}
@@ -638,7 +687,19 @@ function ProductCard({ product, onAdd }) {
   );
 }
 
-function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn, onCheckout, products = [] }) {
+function CartDrawer({
+  open,
+  onClose,
+  cart,
+  setQty,
+  removeItem,
+  total,
+  isLoggedIn,
+  discount = 0,
+  onCheckout,
+  products = [],
+}) {
+  const effectiveDiscount = Number.isFinite(Number(discount)) ? Number(discount) : 0;
   const getAvailable = (id) => {
     const product = products.find((p) => p.id === id);
     return Number(product?.stock ?? 0);
@@ -746,6 +807,11 @@ function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn
                   ? "El pedido se cargará directamente como orden pagadera."
                   : "Si no iniciaste sesión, generaremos una solicitud para seguimiento manual."}
               </p>
+              {isLoggedIn && effectiveDiscount > 0 ? (
+                <p className="text-xs text-emerald-600">
+                  Tenés un descuento del {effectiveDiscount}% activo para tus precios.
+                </p>
+              ) : null}
               <button
                 onClick={onCheckout}
                 disabled={checkoutDisabled}

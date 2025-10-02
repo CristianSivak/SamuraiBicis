@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   orderBy,
   query,
@@ -67,5 +68,11 @@ export async function updateCustomerType(id: string, patch: Partial<CustomerType
 
 export async function removeCustomerType(id: string) {
   await deleteDoc(doc(db, "customerTypes", id));
+}
+
+export async function getCustomerTypeById(id: string) {
+  const snap = await getDoc(doc(db, "customerTypes", id));
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...(snap.data() as any) } as CustomerType;
 }
 
