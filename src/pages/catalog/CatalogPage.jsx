@@ -1,11 +1,29 @@
 // src/pages/catalog/CatalogPage.jsx
 import React, { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../../auth/AuthContext";
 import { listProducts } from "../../services/products";
 import { createOrder } from "../../services/orders";
+import { getCustomerTypeById } from "../../services/customerTypes";
 import { LoadingOverlay, BusyButtonContent } from "../../components/ui/LoadingIndicators";
 
 const money = (n) =>
   Number(n || 0).toLocaleString("es-AR", { style: "currency", currency: "ARS" });
+
+const getEffectivePrice = (price, discount, isLoggedIn) => {
+  const basePrice = Number(price || 0);
+  if (!isLoggedIn) {
+    return basePrice;
+  }
+  const parsedDiscount = Number(discount || 0);
+  if (!Number.isFinite(parsedDiscount) || parsedDiscount <= 0) {
+    return basePrice;
+  }
+  const discounted = basePrice - (basePrice * parsedDiscount) / 100;
+  if (!Number.isFinite(discounted)) {
+    return basePrice;
+  }
+  return Math.max(discounted, 0);
+};
 
 const SORTS = [
   { id: "featured", label: "Destacado" },
@@ -15,7 +33,9 @@ const SORTS = [
   { id: "priceDesc", label: "Precio - alto a bajo" },
 ];
 
-export default function CatalogPage({ isLoggedIn = false }) {
+export default function CatalogPage() {
+  const { user, profile } = useAuth();
+  const isLoggedIn = !!user;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [selectedCats, setSelectedCats] = useState([]);
   const [search, setSearch] = useState("");
@@ -30,6 +50,38 @@ export default function CatalogPage({ isLoggedIn = false }) {
   const [orderOpen, setOrderOpen] = useState(false);
   const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [orderResult, setOrderResult] = useState(null);
+  const [discount, setDiscount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const customerTypeId = profile?.customerTypeId;
+
+    if (!customerTypeId) {
+      setDiscount(0);
+      return () => {
+        active = false;
+      };
+    }
+
+    setDiscount(0);
+
+    (async () => {
+      try {
+        const customerType = await getCustomerTypeById(customerTypeId);
+        if (!active) return;
+        const parsedDiscount = Number(customerType?.discount ?? 0);
+        setDiscount(Number.isFinite(parsedDiscount) ? parsedDiscount : 0);
+      } catch (error) {
+        if (!active) return;
+        console.error("Error obteniendo tipo de cliente:", error);
+        setDiscount(0);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [profile?.customerTypeId]);
 
   useEffect(() => {
     let active = true;
@@ -183,8 +235,24 @@ export default function CatalogPage({ isLoggedIn = false }) {
   const clearCart = () => setCart([]);
 
   const cartTotal = useMemo(
-    () => cart.reduce((acc, it) => acc + (it.price || 0) * it.qty, 0),
-    [cart]
+    () =>
+      cart.reduce(
+        (acc, it) => acc + getEffectivePrice(it.price, discount, isLoggedIn) * it.qty,
+        0
+      ),
+    [cart, discount, isLoggedIn]
+  );
+
+  const stats = useMemo(
+    () => [
+      { label: "Stock activo", value: `${items.length}` },
+      { label: "Categorías", value: categories.length || "–" },
+      {
+        label: "Total en carrito",
+        value: isLoggedIn ? money(cartTotal) : "Iniciá sesión para ver",
+      },
+    ],
+    [items.length, categories.length, isLoggedIn, cartTotal]
   );
 
   async function submitOrder(data) {
@@ -201,7 +269,12 @@ export default function CatalogPage({ isLoggedIn = false }) {
       return;
     }
 
-    const orderItems = cart.map(({ id, name, price, qty }) => ({ id, name, price, qty }));
+    const orderItems = cart.map(({ id, name, price, qty }) => ({
+      id,
+      name,
+      price: getEffectivePrice(price, discount, isLoggedIn),
+      qty,
+    }));
     const shortages = orderItems.filter((item) => {
       const product = items.find((p) => p.id === item.id);
       const available = Number(product?.stock ?? 0);
@@ -266,11 +339,7 @@ export default function CatalogPage({ isLoggedIn = false }) {
                 </p>
               </div>
               <dl className="grid gap-4 sm:grid-cols-3">
-                {[
-                  { label: "Stock activo", value: `${items.length}` },
-                  { label: "Categorías", value: categories.length || "–" },
-                  { label: "Total en carrito", value: money(cartTotal) },
-                ].map((item) => (
+                {stats.map((item) => (
                   <div
                     key={item.label}
                     className="rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.2)]"
@@ -296,7 +365,10 @@ export default function CatalogPage({ isLoggedIn = false }) {
                 </button>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
                   {isLoggedIn ? (
-                    <p>Los precios incluyen tu lista mayorista. Podés enviar el pedido directo al panel.</p>
+                    <p>
+                      Los precios incluyen tu lista mayorista
+                      {discount > 0 ? ` con ${discount}% de descuento activo` : ""}. Podés enviar el pedido directo al panel.
+                    </p>
                   ) : (
                     <p>Si todavía no iniciaste sesión, igual podés enviar tu carrito como solicitud con seguimiento.</p>
                   )}
@@ -361,7 +433,12 @@ export default function CatalogPage({ isLoggedIn = false }) {
               {showSkeleton ? (
                 <ProductGridSkeleton />
               ) : (
-                <ProductGrid items={filtered} isLoggedIn={isLoggedIn} onAdd={addToCart} />
+                <ProductGrid
+                  items={filtered}
+                  isLoggedIn={isLoggedIn}
+                  discount={discount}
+                  onAdd={addToCart}
+                />
               )}
             </div>
           </section>
@@ -386,6 +463,7 @@ export default function CatalogPage({ isLoggedIn = false }) {
         removeItem={removeFromCart}
         total={cartTotal}
         isLoggedIn={isLoggedIn}
+        discount={discount}
         onCheckout={() => {
           const hasIssues = cart.some((item) => {
             const product = items.find((p) => p.id === item.id);
@@ -548,7 +626,7 @@ function ActiveFilters({ categories, selected, onRemove, onClear }) {
   );
 }
 
-function ProductGrid({ items, isLoggedIn, onAdd }) {
+function ProductGrid({ items, isLoggedIn, discount = 0, onAdd }) {
   if (!items.length) {
     return (
       <div className="rounded-3xl border border-dashed border-slate-300/60 bg-white p-12 text-center text-sm text-slate-500">
@@ -560,7 +638,7 @@ function ProductGrid({ items, isLoggedIn, onAdd }) {
     <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {items.map((p) => (
         <li key={p.id}>
-          <ProductCard product={p} isLoggedIn={isLoggedIn} onAdd={onAdd} />
+          <ProductCard product={p} isLoggedIn={isLoggedIn} discount={discount} onAdd={onAdd} />
         </li>
       ))}
     </ul>
@@ -586,8 +664,13 @@ function ProductGridSkeleton({ count = 8 }) {
   );
 }
 
-function ProductCard({ product, onAdd }) {
+function ProductCard({ product, onAdd, discount = 0, isLoggedIn }) {
   const available = (product.stock ?? 0) > 0;
+  const effectiveDiscount = Number.isFinite(Number(discount)) ? Number(discount) : 0;
+  const basePrice = Number(product?.price || 0);
+  const discountedPrice = getEffectivePrice(basePrice, effectiveDiscount, isLoggedIn);
+  const hasDiscount =
+    isLoggedIn && effectiveDiscount > 0 && discountedPrice !== basePrice && basePrice > 0;
   return (
     <article className="group relative h-full overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_30px_60px_-35px_rgba(15,23,42,0.18)] transition duration-200 hover:-translate-y-1 hover:border-sky-500/60">
       <div className="aspect-square w-full overflow-hidden rounded-2xl bg-slate-100">
@@ -620,8 +703,32 @@ function ProductCard({ product, onAdd }) {
             <span className="h-2 w-2 rounded-full bg-current" />
             {available ? "Disponible" : "Sin stock"}
           </span>
-          <span className="text-sm font-semibold text-slate-900">{money(product.price)}</span>
+          {isLoggedIn ? (
+            <div className="text-right">
+              {hasDiscount ? (
+                <>
+                  <span className="block text-[10px] font-medium text-slate-400 line-through">
+                    {money(basePrice)}
+                  </span>
+                  <span className="text-sm font-semibold text-slate-900">
+                    {money(discountedPrice)}
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm font-semibold text-slate-900">
+                  {money(discountedPrice)}
+                </span>
+              )}
+            </div>
+          ) : (
+            <span className="text-[11px] font-medium text-slate-500">
+              Iniciá sesión para ver precios
+            </span>
+          )}
         </div>
+        {hasDiscount ? (
+          <p className="text-xs text-emerald-600">Descuento activo del {effectiveDiscount}%.</p>
+        ) : null}
         <button
           disabled={!available}
           onClick={() => onAdd(product)}
@@ -638,7 +745,19 @@ function ProductCard({ product, onAdd }) {
   );
 }
 
-function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn, onCheckout, products = [] }) {
+function CartDrawer({
+  open,
+  onClose,
+  cart,
+  setQty,
+  removeItem,
+  total,
+  isLoggedIn,
+  discount = 0,
+  onCheckout,
+  products = [],
+}) {
+  const effectiveDiscount = Number.isFinite(Number(discount)) ? Number(discount) : 0;
   const getAvailable = (id) => {
     const product = products.find((p) => p.id === id);
     return Number(product?.stock ?? 0);
@@ -679,6 +798,11 @@ function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn
                 const availableStock = getAvailable(it.id);
                 const disableDecrease = it.qty <= 1;
                 const disableIncrease = availableStock > 0 ? it.qty >= availableStock : true;
+                const basePrice = Number(it.price || 0);
+                const unitPrice = getEffectivePrice(basePrice, effectiveDiscount, isLoggedIn);
+                const lineTotal = unitPrice * it.qty;
+                const showDiscount =
+                  isLoggedIn && effectiveDiscount > 0 && unitPrice !== basePrice && basePrice > 0;
                 return (
                   <li key={it.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="h-16 w-16 overflow-hidden rounded-2xl bg-slate-100">
@@ -690,7 +814,22 @@ function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn
                     </div>
                     <div className="flex-1 text-sm text-slate-600">
                       <div className="font-medium text-slate-900">{it.name}</div>
-                      <div className="text-xs text-slate-500">{money(it.price)} c/u</div>
+                      {isLoggedIn ? (
+                        <div className="text-xs text-slate-500">
+                          {showDiscount ? (
+                            <>
+                              <span className="mr-2 line-through text-[11px] text-slate-400">
+                                {money(basePrice)}
+                              </span>
+                              <span>{money(unitPrice)} c/u</span>
+                            </>
+                          ) : (
+                            <span>{money(unitPrice)} c/u</span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-slate-500">Precio visible al iniciar sesión</div>
+                      )}
                       <div className="mt-3 inline-flex items-center gap-2">
                         <button
                           className="rounded-xl border border-slate-300 px-2 text-sm text-slate-600 transition hover:bg-slate-100 disabled:opacity-50"
@@ -723,7 +862,9 @@ function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn
                       >
                         Quitar
                       </button>
-                      <div className="text-sm font-semibold text-slate-900">{money(it.price * it.qty)}</div>
+                      {isLoggedIn ? (
+                        <div className="text-sm font-semibold text-slate-900">{money(lineTotal)}</div>
+                      ) : null}
                     </div>
                   </li>
                 );
@@ -739,13 +880,20 @@ function CartDrawer({ open, onClose, cart, setQty, removeItem, total, isLoggedIn
             <div className="mt-6 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
               <div className="flex items-center justify-between">
                 <span>Total</span>
-                <span className="text-lg font-semibold text-slate-900">{money(total)}</span>
+                <span className="text-lg font-semibold text-slate-900">
+                  {isLoggedIn ? money(total) : "Iniciá sesión para ver"}
+                </span>
               </div>
               <p className="text-xs text-slate-500">
                 {isLoggedIn
                   ? "El pedido se cargará directamente como orden pagadera."
-                  : "Si no iniciaste sesión, generaremos una solicitud para seguimiento manual."}
+                  : "Si no iniciaste sesión, generaremos una solicitud con tu selección para seguimiento manual."}
               </p>
+              {isLoggedIn && effectiveDiscount > 0 ? (
+                <p className="text-xs text-emerald-600">
+                  Tenés un descuento del {effectiveDiscount}% activo para tus precios.
+                </p>
+              ) : null}
               <button
                 onClick={onCheckout}
                 disabled={checkoutDisabled}
