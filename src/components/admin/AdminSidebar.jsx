@@ -5,6 +5,7 @@ const items = [
   { to: "/admin/users", label: "Usuarios", icon: UsersIcon },
   { to: "/admin/products", label: "Productos", icon: BoxIcon },
   { to: "/admin/orders", label: "Órdenes", icon: ReceiptIcon },
+  { to: "/admin/product-types", label: "Tipos de producto", icon: LayersIcon },
   { to: "/admin/customer-types", label: "Tipos de cliente", icon: TagIcon },
 ];
 
@@ -99,6 +100,16 @@ function ReceiptIcon(props) {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
       <path d="M4 3h14l2 3v14a2 2 0 0 1-2 2H4z" />
       <path d="M8 12h8M8 7h8M8 17h5" />
+    </svg>
+  );
+}
+
+function LayersIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+      <path d="m12 2 9 5-9 5-9-5 9-5Z" />
+      <path d="m3 12 9 5 9-5" />
+      <path d="m3 17 9 5 9-5" />
     </svg>
   );
 }
