@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   subscribeClients,
-  createAccount,
+  createUser,
   updateAccount,
   toggleAccountStatus,
   removeAccount,
@@ -10,6 +10,7 @@ import { approveAndInvite } from "../../services/invite";
 import { auth } from "../../firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { BusyButtonContent, LoadingOverlay } from "../../components/ui/LoadingIndicators";
+import { subscribeCustomerTypes } from "../../services/customerTypes";
 
 const statusStyles = {
   activo: "border border-emerald-200 bg-emerald-50 text-emerald-600",
@@ -18,10 +19,17 @@ const statusStyles = {
   rejected: "border border-rose-200 bg-rose-50 text-rose-600",
 };
 
+function formatDiscount(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "0%";
+  return `${num.toFixed(num % 1 === 0 ? 0 : 2)}%`;
+}
+
 export default function Users() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [authReady, setAuthReady] = useState(false);
+  const [customerTypes, setCustomerTypes] = useState([]);
 
   const [query, setQuery] = useState("");
   const [role, setRole] = useState("all");
@@ -53,6 +61,28 @@ export default function Users() {
     return unsub;
   }, []);
 
+  useEffect(() => {
+    const unsub = subscribeCustomerTypes(
+      (items) => {
+        setCustomerTypes(items);
+      },
+      (error) => {
+        console.error(error);
+        alert("No se pudieron cargar las categorías de cliente.");
+      }
+    );
+
+    return () => unsub && unsub();
+  }, []);
+
+  const customerTypeMap = useMemo(() => {
+    const map = new Map();
+    customerTypes.forEach((type) => {
+      if (type?.id) map.set(type.id, type);
+    });
+    return map;
+  }, [customerTypes]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((u) => {
@@ -68,7 +98,7 @@ export default function Users() {
       if (editing?.id) {
         await updateAccount(editing.id, data);
       } else {
-        await createAccount({ ...data, kind: "client" });
+        await createUser({ ...data, kind: "client" });
       }
       setModalOpen(false);
       setEditing(null);
@@ -173,6 +203,7 @@ export default function Users() {
               <th className="px-4 py-3 text-left">Nombre</th>
               <th className="px-4 py-3 text-left">Email</th>
               <th className="px-4 py-3 text-left">Rol</th>
+              <th className="px-4 py-3 text-left">Tipo de cliente</th>
               <th className="px-4 py-3 text-left">Estado</th>
               <th className="px-4 py-3 text-right">Acciones</th>
             </tr>
@@ -180,14 +211,14 @@ export default function Users() {
           <tbody className="divide-y divide-slate-100">
             {loading && (
               <tr>
-                <td className="px-4 py-8 text-center text-slate-500" colSpan={5}>
+                <td className="px-4 py-8 text-center text-slate-500" colSpan={6}>
                   Cargando…
                 </td>
               </tr>
             )}
             {!loading && filtered.length === 0 && (
               <tr>
-                <td className="px-4 py-12 text-center text-slate-500" colSpan={5}>
+                <td className="px-4 py-12 text-center text-slate-500" colSpan={6}>
                   Sin resultados.
                 </td>
               </tr>
@@ -197,6 +228,9 @@ export default function Users() {
                 <td className="px-4 py-4 text-slate-600">{row.name || "-"}</td>
                 <td className="px-4 py-4 text-slate-600">{row.email || "-"}</td>
                 <td className="px-4 py-4 capitalize text-slate-500">{row.role}</td>
+                <td className="px-4 py-4 text-slate-500">
+                  {customerTypeMap.get(row.customerTypeId)?.title || "-"}
+                </td>
                 <td className="px-4 py-4">
                   <span
                     className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ${
@@ -266,16 +300,18 @@ export default function Users() {
           setEditing(null);
         }}
         onSubmit={onSubmitUser}
+        customerTypes={customerTypes}
       />
     </div>
   );
 }
 
-function UserModal({ open, onClose, onSubmit, initial }) {
+function UserModal({ open, onClose, onSubmit, initial, customerTypes }) {
   const [name, setName] = useState(initial?.name || "");
   const [email, setEmail] = useState(initial?.email || "");
   const [role, setRole] = useState(initial?.role || "viewer");
   const [status, setStatus] = useState(initial?.status || "activo");
+  const [customerTypeId, setCustomerTypeId] = useState(initial?.customerTypeId || "");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -283,6 +319,7 @@ function UserModal({ open, onClose, onSubmit, initial }) {
     setEmail(initial?.email || "");
     setRole(initial?.role || "viewer");
     setStatus(initial?.status || "activo");
+    setCustomerTypeId(initial?.customerTypeId || "");
   }, [initial, open]);
 
   if (!open) return null;
@@ -304,7 +341,7 @@ function UserModal({ open, onClose, onSubmit, initial }) {
           onSubmit={async (e) => {
             e.preventDefault();
             setSaving(true);
-            await onSubmit({ name, email, role, status });
+            await onSubmit({ name, email, role, status, customerTypeId: customerTypeId || null });
             setSaving(false);
           }}
         >
@@ -351,6 +388,22 @@ function UserModal({ open, onClose, onSubmit, initial }) {
                 <option value="suspendido">Suspendido</option>
               </select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Tipo de cliente</label>
+            <select
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
+              value={customerTypeId || ""}
+              onChange={(e) => setCustomerTypeId(e.target.value)}
+            >
+              <option value="">Sin asignar</option>
+              {customerTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.title} ({formatDiscount(type.discount)})
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex justify-end gap-2">

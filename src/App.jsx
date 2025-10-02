@@ -16,6 +16,7 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import Users from './pages/admin/Users'
 import Products from './pages/admin/Products'
 import Orders from './pages/admin/Orders'
+import CustomerTypes from "./pages/admin/CustomerTypes";
 import AdminNotFound from './pages/admin/AdminNotFound'
 
 
@@ -32,6 +33,7 @@ export default function App() {
               <Route path="/admin/users" component={Users} />
               <Route path="/admin/products" component={Products} />
               <Route path="/admin/orders" component={Orders} />
+              <Route path="/admin/customer-types" component={CustomerTypes} />
               <Route component={AdminNotFound} />
             </Switch>
           </AdminLayout>

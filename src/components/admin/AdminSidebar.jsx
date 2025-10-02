@@ -5,6 +5,7 @@ const items = [
   { to: "/admin/users", label: "Usuarios", icon: UsersIcon },
   { to: "/admin/products", label: "Productos", icon: BoxIcon },
   { to: "/admin/orders", label: "Órdenes", icon: ReceiptIcon },
+  { to: "/admin/customer-types", label: "Tipos de cliente", icon: TagIcon },
 ];
 
 export default function AdminSidebar({ collapsed, onToggle }) {
@@ -98,6 +99,15 @@ function ReceiptIcon(props) {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
       <path d="M4 3h14l2 3v14a2 2 0 0 1-2 2H4z" />
       <path d="M8 12h8M8 7h8M8 17h5" />
+    </svg>
+  );
+}
+
+function TagIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+      <path d="M20.59 13.41 11 3H4v7l9.59 9.59a2 2 0 0 0 2.82 0l4.18-4.18a2 2 0 0 0 0-2.82Z" />
+      <path d="M7 7h.01" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

@@ -17,6 +17,7 @@ export type Account = {
   province?: string;
   city?: string;
   vertical?: string; // rubro
+  customerTypeId?: string | null;
   kind: "client" | "staff";
   role: "client" | "viewer" | "manager" | "admin";
   status: "pending" | "activo" | "suspendido" | "rejected";
@@ -91,6 +92,7 @@ export async function rejectClient(id: string, reason?: string) {
 export async function updateAccount(id: string, patch: Partial<Account>) {
   const p: any = { ...patch, updatedAt: serverTimestamp() };
   if (p.email) p.emailLower = String(p.email).trim().toLowerCase();
+  if (p.customerTypeId === "") p.customerTypeId = null;
   await updateDoc(doc(db, "users", id), p);
 }
 
@@ -109,7 +111,12 @@ export function subscribeUsers(cb: any, onError?: any) {
 }
 
 export async function createUser(data: {
-  name: string; email: string; role?: Account["role"]; status?: Account["status"]; kind?: Account["kind"];
+  name: string;
+  email: string;
+  role?: Account["role"];
+  status?: Account["status"];
+  kind?: Account["kind"];
+  customerTypeId?: string | null;
 }) {
   // alta manual desde admin
   const ref = await addDoc(col, {
@@ -119,6 +126,7 @@ export async function createUser(data: {
     role: data.role || "client",
     status: data.status || "activo",
     kind: data.kind || "client",
+    customerTypeId: data.customerTypeId || null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
