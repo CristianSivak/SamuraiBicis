@@ -14,6 +14,8 @@ export type Product = {
   price: number;
   stock: number;
   category: string;
+  productTypeId?: string | null;
+  productTypeTitle?: string | null;
   active: boolean;
   imageUrl: string;
   createdAt?: any; updatedAt?: any;
@@ -23,17 +25,35 @@ const colRef = collection(db, "products");
 const normalize = (s: string) => (s || "").trim().toLowerCase();
 
 export async function createProduct({
-  name, price, stock, category, active, imageFile
+  name,
+  price,
+  stock,
+  category,
+  productTypeId,
+  productTypeTitle,
+  active,
+  imageFile,
 }: {
-  name: string; price?: number | string; stock?: number | string;
-  category?: string; active?: boolean; imageFile?: File | null;
+  name: string;
+  price?: number | string;
+  stock?: number | string;
+  category?: string;
+  productTypeId?: string | null;
+  productTypeTitle?: string | null;
+  active?: boolean;
+  imageFile?: File | null;
 }) {
+  const normalizedTypeTitle =
+    typeof productTypeTitle === "string" ? productTypeTitle.trim() : "";
+  const effectiveTypeTitle = normalizedTypeTitle || category || "general";
   const base = {
     name: name || "",
     nameLower: normalize(name),
     price: Number(price ?? 0),
     stock: Number(stock ?? 0),
-    category: category || "general",
+    category: category || effectiveTypeTitle || "general",
+    productTypeId: productTypeId || null,
+    productTypeTitle: effectiveTypeTitle || "general",
     active: active ?? true,
     imageUrl: "",
     createdAt: serverTimestamp(),
@@ -49,16 +69,39 @@ export async function createProduct({
 }
 
 export async function updateProduct(id: string, {
-  name, price, stock, category, active, imageFile
+  name,
+  price,
+  stock,
+  category,
+  productTypeId,
+  productTypeTitle,
+  active,
+  imageFile,
 }: {
-  name?: string; price?: number | string; stock?: number | string;
-  category?: string; active?: boolean; imageFile?: File | null;
+  name?: string;
+  price?: number | string;
+  stock?: number | string;
+  category?: string;
+  productTypeId?: string | null;
+  productTypeTitle?: string | null;
+  active?: boolean;
+  imageFile?: File | null;
 }) {
   const patch: any = { updatedAt: serverTimestamp() };
   if (name !== undefined) { patch.name = name; patch.nameLower = normalize(name); }
   if (price !== undefined) patch.price = Number(price);
   if (stock !== undefined) patch.stock = Number(stock);
   if (category !== undefined) patch.category = category || "general";
+  if (productTypeId !== undefined) patch.productTypeId = productTypeId || null;
+  if (productTypeTitle !== undefined) {
+    const normalizedTitle =
+      typeof productTypeTitle === "string" ? productTypeTitle.trim() : "";
+    const effectiveTitle = normalizedTitle || patch.category || category || "general";
+    patch.productTypeTitle = effectiveTitle;
+    if (category === undefined && patch.category === undefined) {
+      patch.category = effectiveTitle;
+    }
+  }
   if (active !== undefined) patch.active = !!active;
   if (imageFile) { const url = await uploadProductImage(id, imageFile); patch.imageUrl = url; }
   await updateDoc(doc(db, "products", id), patch);

@@ -3,6 +3,23 @@ import { useEffect, useRef, useState } from "react";
 // Update the import path if the file is located elsewhere, for example:
 import { createProduct, updateProduct, type Product } from "../../services/products";
 // Or create the file at ../services/product.ts and export the required members.
+import { subscribeProductTypes, type ProductType } from "../../services/productTypes";
+
+const LEGACY_PREFIX = "legacy:";
+
+const makeLegacyValue = (title: string) =>
+  `${LEGACY_PREFIX}${encodeURIComponent((title || "").trim() || "general")}`;
+
+const parseLegacyValue = (value: string) => {
+  if (!value.startsWith(LEGACY_PREFIX)) return value;
+  const raw = value.slice(LEGACY_PREFIX.length);
+  try {
+    return decodeURIComponent(raw);
+  } catch (err) {
+    console.error("Error decoding legacy value", err);
+    return raw;
+  }
+};
 
 type ProductFormProps = {
   open: boolean;
@@ -15,24 +32,60 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
   const [name, setName] = useState(initial?.name || "");
   const [price, setPrice] = useState<number | string>(initial?.price ?? 0);
   const [stock, setStock] = useState<number | string>(initial?.stock ?? 0);
-  const [category, setCategory] = useState(initial?.category || "general");
   const [active, setActive] = useState<boolean>(initial?.active ?? true);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string>(initial?.imageUrl || "");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [productTypes, setProductTypes] = useState<ProductType[]>([]);
+  const [productTypeId, setProductTypeId] = useState<string | null>(
+    initial?.productTypeId ? String(initial.productTypeId) : null
+  );
+  const [productTypeTitle, setProductTypeTitle] = useState<string>(
+    (initial?.productTypeTitle || initial?.category || "general") as string
+  );
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setName(initial?.name || "");
     setPrice(initial?.price ?? 0);
     setStock(initial?.stock ?? 0);
-    setCategory(initial?.category || "general");
     setActive(initial?.active ?? true);
     setImageFile(null);
     setPreview(initial?.imageUrl || "");
     setErrorMsg(null);
+    const nextTypeTitle = (() => {
+      const rawTitle = typeof initial?.productTypeTitle === "string" ? initial?.productTypeTitle : undefined;
+      const legacyCategory = typeof initial?.category === "string" ? initial?.category : undefined;
+      const normalizedTitle = (rawTitle || "").trim();
+      if (normalizedTitle) return normalizedTitle;
+      const normalizedLegacy = (legacyCategory || "").trim();
+      return normalizedLegacy || "general";
+    })();
+    setProductTypeId(initial?.productTypeId ? String(initial.productTypeId) : null);
+    setProductTypeTitle(nextTypeTitle);
   }, [initial, open]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeProductTypes(
+      (items) => setProductTypes(items || []),
+      (error) => console.error("Error fetching product types", error)
+    );
+    return () => {
+      if (typeof unsubscribe === "function") unsubscribe();
+    };
+  }, []);
+
+  const normalizedCurrentTypeTitle = (productTypeTitle || "").trim() || "general";
+  const currentLegacyValue = makeLegacyValue(normalizedCurrentTypeTitle);
+  const selectProductTypeValue = productTypeId ?? currentLegacyValue;
+  const hasLegacyTypeOption =
+    !productTypeId &&
+    normalizedCurrentTypeTitle !== "general" &&
+    !productTypes.some(
+      (type) =>
+        (type.title || "").trim().toLowerCase() === normalizedCurrentTypeTitle.toLowerCase()
+    );
 
   if (!open) return null;
 
@@ -56,6 +109,7 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
     // Normalizar números (valueAsNumber sería otra opción)
     const priceNum = Number(price ?? 0);
     const stockNum = Number(stock ?? 0);
+    const normalizedTypeTitle = (productTypeTitle || "").trim() || "general";
 
     setLoading(true);
     try {
@@ -65,7 +119,9 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
           name,
           price: priceNum,
           stock: stockNum,
-          category,
+          category: normalizedTypeTitle,
+          productTypeId,
+          productTypeTitle: normalizedTypeTitle,
           active,
           imageFile,
         });
@@ -74,7 +130,9 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
           name,
           price: priceNum,
           stock: stockNum,
-          category,
+          category: normalizedTypeTitle,
+          productTypeId: productTypeId ?? null,
+          productTypeTitle: normalizedTypeTitle,
           active,
           imageUrl: imageFile ? preview : (initial?.imageUrl ?? ""),
         } as Product;
@@ -83,7 +141,9 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
           name,
           price: priceNum,
           stock: stockNum,
-          category,
+          category: normalizedTypeTitle,
+          productTypeId,
+          productTypeTitle: normalizedTypeTitle,
           active,
           imageFile,
         });
@@ -155,18 +215,38 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
             </div>
 
             <div>
-              <label className="block text-sm mb-1">Categoría</label>
+              <label className="block text-sm mb-1">Tipo de producto</label>
               <select
                 className="w-full rounded-xl border px-3 py-2 text-sm"
-                value={category}
-                onChange={e => setCategory(e.target.value)}
+                value={selectProductTypeValue}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value.startsWith(LEGACY_PREFIX)) {
+                    const legacyTitle = (parseLegacyValue(value) || "general").trim();
+                    setProductTypeId(null);
+                    setProductTypeTitle(legacyTitle || "general");
+                  } else {
+                    const found = productTypes.find((type) => type.id === value);
+                    const nextTitle = (found?.title || found?.identifier || value || "").trim();
+                    setProductTypeId(value || null);
+                    setProductTypeTitle(nextTitle || "general");
+                  }
+                }}
                 disabled={loading}
               >
-                <option value="general">General</option>
-                <option value="montaña">Montaña</option>
-                <option value="ruta">Ruta</option>
-                <option value="urbana">Urbana</option>
-                <option value="accesorios">Accesorios</option>
+                <option value={makeLegacyValue("general")}>General</option>
+                {productTypes.map((type) => {
+                  const optionValue = type.id || makeLegacyValue(type.title);
+                  const label = type.title || type.identifier || type.id || "Sin título";
+                  return (
+                    <option key={optionValue} value={optionValue}>
+                      {label}
+                    </option>
+                  );
+                })}
+                {hasLegacyTypeOption && (
+                  <option value={currentLegacyValue}>{normalizedCurrentTypeTitle}</option>
+                )}
               </select>
             </div>
 
