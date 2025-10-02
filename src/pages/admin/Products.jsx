@@ -7,6 +7,7 @@ import {
   subscribeProducts,
 } from "../../services/products";
 import { LoadingOverlay } from "../../components/ui/LoadingIndicators";
+import { subscribeProductTypes } from "../../services/productTypes";
 
 const statusStyles = {
   true: "border border-emerald-200 bg-emerald-50 text-emerald-600",
@@ -17,12 +18,31 @@ function money(n) {
   return Number(n || 0).toLocaleString("es-AR", { style: "currency", currency: "ARS" });
 }
 
+const LEGACY_PREFIX = "legacy:";
+const GENERAL_LEGACY_VALUE = `${LEGACY_PREFIX}${encodeURIComponent("general")}`;
+
+function makeLegacyValue(title = "") {
+  return `${LEGACY_PREFIX}${encodeURIComponent(title || "general")}`;
+}
+
+function parseLegacyValue(value = "") {
+  if (!value.startsWith(LEGACY_PREFIX)) return value;
+  const raw = value.slice(LEGACY_PREFIX.length);
+  try {
+    return decodeURIComponent(raw);
+  } catch (err) {
+    console.error("Error decoding legacy value", err);
+    return raw;
+  }
+}
+
 export default function Products() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [onlyActive, setOnlyActive] = useState("all");
   const [category, setCategory] = useState("all");
+  const [productTypes, setProductTypes] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
 
@@ -39,15 +59,42 @@ export default function Products() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = subscribeProductTypes(
+      (items) => setProductTypes(items || []),
+      (error) => console.error("Error fetching product types", error)
+    );
+    return () => {
+      if (typeof unsubscribe === "function") unsubscribe();
+    };
+  }, []);
+
   const filtered = useMemo(() => {
     const nq = (q || "").trim().toLowerCase();
     return rows.filter((p) => {
       const text = !nq || (p.nameLower || "").includes(nq);
       const st = onlyActive === "all" ? true : !!p.active === (onlyActive === "true");
-      const cat = category === "all" ? true : p.category === category;
-      return text && st && cat;
+      let matchesType = true;
+      if (category !== "all") {
+        const candidateTitle = ((p.productTypeTitle || p.category || "") + "").toLowerCase();
+        if (category.startsWith(LEGACY_PREFIX)) {
+          const legacyTitle = parseLegacyValue(category).toLowerCase();
+          if (legacyTitle === "general") {
+            matchesType = !p.productTypeId && (!candidateTitle || candidateTitle === "general");
+          } else {
+            matchesType = candidateTitle === legacyTitle;
+          }
+        } else {
+          const selectedType = productTypes.find((t) => t.id === category);
+          const selectedTitle = (selectedType?.title || "").toLowerCase();
+          matchesType =
+            p.productTypeId === category ||
+            (!!selectedTitle && candidateTitle === selectedTitle);
+        }
+      }
+      return text && st && matchesType;
     });
-  }, [rows, q, onlyActive, category]);
+  }, [rows, q, onlyActive, category, productTypes]);
 
   async function handleCreate(payload) {
     setLoading(true);
@@ -117,12 +164,17 @@ export default function Products() {
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
-            <option value="all">Todas las categorías</option>
-            <option value="general">General</option>
-            <option value="montaña">Montaña</option>
-            <option value="ruta">Ruta</option>
-            <option value="urbana">Urbana</option>
-            <option value="accesorios">Accesorios</option>
+            <option value="all">Todas</option>
+            <option value={GENERAL_LEGACY_VALUE}>General</option>
+            {productTypes.map((type) => {
+              const optionValue = type.id || makeLegacyValue(type.title);
+              const label = type.title || type.identifier || type.id || "Sin título";
+              return (
+                <option key={optionValue} value={optionValue}>
+                  {label}
+                </option>
+              );
+            })}
           </select>
           <div className="flex items-center justify-end text-sm text-slate-500">
             {loading ? "Cargando…" : `${filtered.length} resultados`}
@@ -165,7 +217,7 @@ export default function Products() {
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-4 capitalize text-slate-500">{p.category || "general"}</td>
+                <td className="px-4 py-4 capitalize text-slate-500">{p.productTypeTitle || p.category || "general"}</td>
                 <td className="px-4 py-4 text-right font-semibold text-slate-900">{money(p.price)}</td>
                 <td className="px-4 py-4 text-right text-slate-500">{p.stock ?? 0}</td>
                 <td className="px-4 py-4">
