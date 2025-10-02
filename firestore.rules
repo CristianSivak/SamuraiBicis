@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Catálogo (temporal): abierto
+    match /products/{id} {
+      allow read: if true;
+      allow write: if true; // luego: if request.auth != null;
+    }
+
+    // Solicitudes de alta de cliente: cualquiera puede CREAR
+    match /client_requests/{id} {
+      // Validación mínima de campos para evitar basura
+      allow create: if
+        request.resource.data.acepta == true &&
+        request.resource.data.nombre is string &&
+        request.resource.data.email is string &&
+        request.resource.data.emailLower is string;
+
+      // No permitir leer/editar/borrar públicamente
+      allow read, update, delete: if false;
+    }
+
+    // Pedidos desde el catálogo: cualquiera puede CREAR
+    match /orders/{id} {
+      allow create: if true;
+      allow read: if true ;
+      allow write: if true ;
+    }
+    
+    // tipos de usuario
+     match /customerTypes/{doc} {
+      allow read, write: if true;
+    }
+    
+    // tipos de productos
+     match /productTypes/{productTypeId} {
+      allow read, write: if true;
+    }
+    
+    // Users
+    match /users/{id} { allow read, write: if true; }
+
+    // Todo lo demás cerrado
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
