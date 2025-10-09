@@ -77,7 +77,12 @@ export default function Products() {
   const filtered = useMemo(() => {
     const nq = (q || "").trim().toLowerCase();
     return rows.filter((p) => {
-      const text = !nq || (p.nameLower || "").includes(nq);
+      const skuValue = p.sku != null ? String(p.sku) : "";
+      const text =
+        !nq ||
+        (p.nameLower || "").includes(nq) ||
+        skuValue.toLowerCase().includes(nq) ||
+        String(p.id || "").toLowerCase().includes(nq);
       const st = onlyActive === "all" ? true : !!p.active === (onlyActive === "true");
       let matchesType = true;
       if (category !== "all") {
@@ -132,6 +137,7 @@ export default function Products() {
       const filename = `productos-${now.toISOString().slice(0, 10)}.xlsx`;
       const rowsForSheet = filtered.map((product) => ({
         id: product.id || "",
+        sku: product.sku || "",
         nombre: product.name || "",
         categoria: product.productTypeTitle || product.category || "general",
         precio: Number(product.price ?? 0),
@@ -139,7 +145,7 @@ export default function Products() {
         activo: product.active ? "sí" : "no",
       }));
       const worksheet = sheetjs.utils.json_to_sheet(rowsForSheet, {
-        header: ["id", "nombre", "categoria", "precio", "stock", "activo"],
+        header: ["id", "sku", "nombre", "categoria", "precio", "stock", "activo"],
       });
       const workbook = sheetjs.utils.book_new();
       sheetjs.utils.book_append_sheet(workbook, worksheet, "Productos");
@@ -203,7 +209,7 @@ export default function Products() {
         <div className="grid gap-4 md:grid-cols-4">
           <input
             className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
-            placeholder="Buscar por nombre…"
+            placeholder="Buscar por nombre, SKU o ID…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -270,7 +276,10 @@ export default function Products() {
                     )}
                     <div>
                       <div className="text-sm font-semibold text-slate-900">{p.name}</div>
-                      <div className="text-xs text-slate-500">{p.id}</div>
+                      <div className="text-xs text-slate-500">
+                        {p.sku ? `SKU: ${p.sku}` : "Sin SKU"}
+                      </div>
+                      <div className="text-[11px] text-slate-400">ID: {p.id}</div>
                     </div>
                   </div>
                 </td>

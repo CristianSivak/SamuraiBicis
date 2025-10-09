@@ -11,6 +11,8 @@ export type Product = {
   id?: string;
   name: string;
   nameLower: string;
+  sku?: string | null;
+  skuNumber?: number | null;
   price: number;
   stock: number;
   category: string;
@@ -24,8 +26,35 @@ export type Product = {
 const colRef = collection(db, "products");
 const normalize = (s: string) => (s || "").trim().toLowerCase();
 
+function normalizeSku(input: unknown) {
+  if (input == null) return { value: null as string | null, number: null as number | null };
+  const raw = typeof input === "string" ? input : String(input ?? "");
+  const trimmed = raw.trim();
+  if (!trimmed) return { value: null, number: null };
+  const parsed = Number(trimmed);
+  return {
+    value: trimmed,
+    number: Number.isFinite(parsed) ? parsed : null,
+  };
+}
+
+async function ensureSkuAvailable(
+  sku: string,
+  { excludeId }: { excludeId?: string } = {}
+) {
+  const normalized = sku.trim();
+  if (!normalized) return;
+  const skuQuery = query(colRef, where("sku", "==", normalized), limit(5));
+  const snapshot = await getDocs(skuQuery);
+  const conflict = snapshot.docs.find((docSnap) => docSnap.id !== excludeId);
+  if (conflict) {
+    throw new Error(`Ya existe un producto registrado con el SKU "${normalized}".`);
+  }
+}
+
 export async function createProduct({
   name,
+  sku,
   price,
   stock,
   category,
@@ -35,6 +64,7 @@ export async function createProduct({
   imageFile,
 }: {
   name: string;
+  sku?: string | number | null;
   price?: number | string;
   stock?: number | string;
   category?: string;
@@ -46,9 +76,15 @@ export async function createProduct({
   const normalizedTypeTitle =
     typeof productTypeTitle === "string" ? productTypeTitle.trim() : "";
   const effectiveTypeTitle = normalizedTypeTitle || category || "general";
+  const { value: normalizedSku, number: skuNumber } = normalizeSku(sku);
+  if (normalizedSku) {
+    await ensureSkuAvailable(normalizedSku);
+  }
   const base = {
     name: name || "",
     nameLower: normalize(name),
+    sku: normalizedSku,
+    skuNumber: skuNumber,
     price: Number(price ?? 0),
     stock: Number(stock ?? 0),
     category: category || effectiveTypeTitle || "general",
@@ -70,6 +106,7 @@ export async function createProduct({
 
 export async function updateProduct(id: string, {
   name,
+  sku,
   price,
   stock,
   category,
@@ -79,6 +116,7 @@ export async function updateProduct(id: string, {
   imageFile,
 }: {
   name?: string;
+  sku?: string | number | null;
   price?: number | string;
   stock?: number | string;
   category?: string;
@@ -89,6 +127,14 @@ export async function updateProduct(id: string, {
 }) {
   const patch: any = { updatedAt: serverTimestamp() };
   if (name !== undefined) { patch.name = name; patch.nameLower = normalize(name); }
+  if (sku !== undefined) {
+    const { value: normalizedSku, number: skuNumber } = normalizeSku(sku);
+    if (normalizedSku) {
+      await ensureSkuAvailable(normalizedSku, { excludeId: id });
+    }
+    patch.sku = normalizedSku;
+    patch.skuNumber = skuNumber;
+  }
   if (price !== undefined) patch.price = Number(price);
   if (stock !== undefined) patch.stock = Number(stock);
   if (category !== undefined) patch.category = category || "general";
@@ -109,6 +155,16 @@ export async function updateProduct(id: string, {
 
 export async function deleteProductById(id: string) {
   await deleteDoc(doc(db, "products", id));
+}
+
+export async function findProductBySku(rawSku: string) {
+  const normalized = (rawSku || "").trim();
+  if (!normalized) return null;
+  const skuQuery = query(colRef, where("sku", "==", normalized), limit(1));
+  const snapshot = await getDocs(skuQuery);
+  if (snapshot.empty) return null;
+  const docSnap = snapshot.docs[0];
+  return { id: docSnap.id, ...(docSnap.data() as Product) } as Product;
 }
 
 // Sube a Storage: products/{id}/{timestamp_nombre}
