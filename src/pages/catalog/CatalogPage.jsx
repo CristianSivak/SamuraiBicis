@@ -298,6 +298,27 @@ export default function CatalogPage() {
         paymentMethod,
       });
       setOrderResult({ ok: true, orderId });
+      const orderTotal = orderItems.reduce((acc, item) => acc + item.price * item.qty, 0);
+      const lines = [
+        "Hola Samurai Bicis, este es el pedido que realicé:",
+        "",
+        `Nombre: ${customer.name}`,
+        customer.email ? `Email: ${customer.email}` : null,
+        customer.phone ? `Teléfono: ${customer.phone}` : null,
+        customer.notes ? `Notas: ${customer.notes}` : null,
+        `Método de pago: ${paymentMethod === "cheque" ? "Cheque" : "Transferencia"}`,
+        "",
+        "Detalle del pedido:",
+        ...orderItems.map((item) =>
+          `• ${item.name} x${item.qty} — ${money(item.price)} c/u — Subtotal: ${money(item.price * item.qty)}`
+        ),
+        "",
+        `Total: ${money(orderTotal)}`,
+        orderId ? `ID de pedido: ${orderId}` : null,
+      ].filter(Boolean);
+      const whatsappMessage = encodeURIComponent(lines.join("\n"));
+      const whatsappNumber = "5491122334455";
+      window.open(`https://wa.me/${whatsappNumber}?text=${whatsappMessage}`, "_blank");
       setItems((prev) =>
         prev.map((product) => {
           const match = orderItems.find((it) => it.id === product.id);
