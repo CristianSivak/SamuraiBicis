@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { createProduct, updateProduct } from "../../services/products";
+import { createProduct, updateProduct, findProductBySku } from "../../services/products";
 import type { ProductType } from "../../services/productTypes";
 import { ensureSheetJs } from "../../utils/sheetjs";
 const BATCH_SIZE = 5;
 
 type NormalizedRow = {
   id?: string;
+  sku?: string;
   name?: string;
   price?: number;
   stock?: number;
@@ -17,9 +18,13 @@ type NormalizedRow = {
 const HEADER_ALIASES: Record<string, keyof NormalizedRow> = {
   id: "id",
   identificador: "id",
-  codigo: "id",
-  code: "id",
-  sku: "id",
+  docid: "id",
+  documento: "id",
+  codigo: "sku",
+  code: "sku",
+  sku: "sku",
+  skuid: "sku",
+  "sku_id": "sku",
   nombre: "name",
   name: "name",
   titulo: "name",
@@ -51,6 +56,7 @@ type PreparedPayload = {
   action: "create" | "update";
   data: {
     name: string;
+    sku: string | null;
     price: number;
     stock: number;
     category: string;
@@ -73,6 +79,7 @@ type ParsedRow = {
 type ImportSummaryItem = {
   index: number;
   name: string;
+  sku?: string | null;
   status: "fulfilled" | "rejected";
   action: PreparedPayload["action"];
   message?: string;
@@ -201,6 +208,11 @@ function buildParsedRows(
             if (idValue) normalized.id = idValue;
             break;
           }
+          case "sku": {
+            const skuValue = normalizeString(value);
+            if (skuValue) normalized.sku = skuValue;
+            break;
+          }
           case "name": {
             const text = normalizeString(value);
             if (text) normalized.name = text;
@@ -293,6 +305,7 @@ function buildParsedRows(
           id: normalized.id,
           data: {
             name: normalized.name,
+            sku: normalized.sku || null,
             price: normalized.price,
             stock: normalized.stock,
             category: productTypeTitle || effectiveCategory || "general",
@@ -371,13 +384,81 @@ export default function BulkProductImport({ open, onClose, onCompleted, productT
     setImporting(true);
     setErrorMessage(null);
 
+    let workingRows = rows.map((row) => ({
+      ...row,
+      warnings: [...row.warnings],
+      errors: [...row.errors],
+      payload: row.payload
+        ? { ...row.payload, data: { ...row.payload.data } }
+        : undefined,
+    }));
+
+    const rowsRequiringLookup = workingRows.filter(
+      (row) => row.payload && !row.payload.id && !!row.payload.data.sku
+    );
+
+    if (rowsRequiringLookup.length) {
+      try {
+        const uniqueSkuValues = Array.from(
+          new Set(
+            rowsRequiringLookup
+              .map((row) => (row.payload?.data.sku || "").trim())
+              .filter(Boolean)
+          )
+        );
+
+        if (uniqueSkuValues.length) {
+          const lookups = await Promise.all(
+            uniqueSkuValues.map(async (skuValue) => ({
+              sku: skuValue,
+              product: await findProductBySku(skuValue),
+            }))
+          );
+          const skuMap = new Map(lookups.map((item) => [item.sku, item.product]));
+
+          workingRows = workingRows.map((row) => {
+            if (!row.payload || row.payload.id) return row;
+            const skuValue = (row.payload.data.sku || "").trim();
+            if (!skuValue) return row;
+            const match = skuMap.get(skuValue);
+            if (!match) return row;
+            const notice = `Se actualizará el producto existente con SKU ${skuValue}.`;
+            const warnings = row.warnings.includes(notice)
+              ? row.warnings
+              : [...row.warnings, notice];
+            return {
+              ...row,
+              warnings,
+              payload: { ...row.payload, action: "update", id: match.id },
+            };
+          });
+        }
+      } catch (error) {
+        console.error(error);
+        setImporting(false);
+        setErrorMessage("Ocurrió un error verificando los SKU existentes. Volvé a intentar.");
+        return;
+      }
+    }
+
+    const rowsToImport = workingRows.filter((row) => row.payload && !row.errors.length);
+
+    if (!rowsToImport.length) {
+      setRows(workingRows);
+      setImporting(false);
+      setErrorMessage("No hay filas válidas para importar.");
+      return;
+    }
+
+    setRows(workingRows);
+
     const results: ImportSummaryItem[] = [];
     let created = 0;
     let updated = 0;
     let failed = 0;
 
-    for (let i = 0; i < validRows.length; i += BATCH_SIZE) {
-      const chunk = validRows.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < rowsToImport.length; i += BATCH_SIZE) {
+      const chunk = rowsToImport.slice(i, i + BATCH_SIZE);
       const settled = await Promise.allSettled(
         chunk.map((row) => {
           const payload = row.payload!;
@@ -394,6 +475,7 @@ export default function BulkProductImport({ open, onClose, onCompleted, productT
           results.push({
             index: row.index,
             name: payload.data.name,
+            sku: payload.data.sku,
             status: "fulfilled",
             action: payload.action,
           });
@@ -407,6 +489,7 @@ export default function BulkProductImport({ open, onClose, onCompleted, productT
           results.push({
             index: row.index,
             name: payload.data.name,
+            sku: payload.data.sku,
             status: "rejected",
             action: payload.action,
             message: result.reason?.message || "Error desconocido",
@@ -416,8 +499,8 @@ export default function BulkProductImport({ open, onClose, onCompleted, productT
     }
 
     const summaryPayload: ImportSummary = {
-      total: rows.length,
-      attempted: validRows.length,
+      total: workingRows.length,
+      attempted: rowsToImport.length,
       created,
       updated,
       failed,
@@ -456,7 +539,10 @@ export default function BulkProductImport({ open, onClose, onCompleted, productT
               Cabeceras obligatorias: <code className="font-mono">nombre</code>, <code className="font-mono">precio</code>, <code className="font-mono">stock</code>.
             </li>
             <li>
-              Columnas opcionales: <code className="font-mono">categoria</code>, <code className="font-mono">activo</code>, <code className="font-mono">id</code> (para actualizar).
+              Columnas opcionales: <code className="font-mono">categoria</code>, <code className="font-mono">activo</code>, <code className="font-mono">id</code> (ID del documento) o <code className="font-mono">sku</code>.
+            </li>
+            <li>
+              Si el <code className="font-mono">sku</code> coincide con un producto existente se lo actualizará automáticamente; de lo contrario, se creará uno nuevo.
             </li>
             <li>
               El precio se interpreta en pesos argentinos. Acepta montos con coma o punto decimal y símbolos monetarios.
@@ -517,6 +603,7 @@ export default function BulkProductImport({ open, onClose, onCompleted, productT
                   <tr>
                     <th className="px-3 py-2 text-left">Fila</th>
                     <th className="px-3 py-2 text-left">Nombre</th>
+                    <th className="px-3 py-2 text-left">SKU</th>
                     <th className="px-3 py-2 text-left">Categoría</th>
                     <th className="px-3 py-2 text-right">Precio</th>
                     <th className="px-3 py-2 text-right">Stock</th>
@@ -533,6 +620,7 @@ export default function BulkProductImport({ open, onClose, onCompleted, productT
                       <tr key={row.index} className={!isValid ? "bg-rose-50/60" : ""}>
                         <td className="px-3 py-2 font-mono text-xs text-slate-500">{row.index}</td>
                         <td className="px-3 py-2">{payload?.data.name || row.normalized.name || "—"}</td>
+                        <td className="px-3 py-2">{payload?.data.sku || row.normalized.sku || "—"}</td>
                         <td className="px-3 py-2">{payload?.data.productTypeTitle || row.normalized.category || "General"}</td>
                         <td className="px-3 py-2 text-right">
                           {payload ? payload.data.price.toLocaleString("es-AR", { style: "currency", currency: "ARS" }) : "—"}
@@ -598,6 +686,7 @@ export default function BulkProductImport({ open, onClose, onCompleted, productT
                   <tr>
                     <th className="px-3 py-2 text-left">Fila</th>
                     <th className="px-3 py-2 text-left">Producto</th>
+                    <th className="px-3 py-2 text-left">SKU</th>
                     <th className="px-3 py-2 text-left">Acción</th>
                     <th className="px-3 py-2 text-left">Resultado</th>
                   </tr>
@@ -607,6 +696,7 @@ export default function BulkProductImport({ open, onClose, onCompleted, productT
                     <tr key={`${item.index}-${index}`}>
                       <td className="px-3 py-2 font-mono text-xs text-slate-500">{item.index}</td>
                       <td className="px-3 py-2">{item.name}</td>
+                      <td className="px-3 py-2">{item.sku || "—"}</td>
                       <td className="px-3 py-2 capitalize">{item.action === "create" ? "Creación" : "Actualización"}</td>
                       <td className="px-3 py-2">
                         {item.status === "fulfilled" ? (

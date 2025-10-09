@@ -30,6 +30,7 @@ type ProductFormProps = {
 
 export default function ProductForm({ open, onClose, initial, onSaved }: ProductFormProps) {
   const [name, setName] = useState(initial?.name || "");
+  const [sku, setSku] = useState(initial?.sku ? String(initial.sku) : "");
   const [price, setPrice] = useState<number | string>(initial?.price ?? 0);
   const [stock, setStock] = useState<number | string>(initial?.stock ?? 0);
   const [active, setActive] = useState<boolean>(initial?.active ?? true);
@@ -48,6 +49,7 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
 
   useEffect(() => {
     setName(initial?.name || "");
+    setSku(initial?.sku ? String(initial.sku) : "");
     setPrice(initial?.price ?? 0);
     setStock(initial?.stock ?? 0);
     setActive(initial?.active ?? true);
@@ -110,6 +112,7 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
     const priceNum = Number(price ?? 0);
     const stockNum = Number(stock ?? 0);
     const normalizedTypeTitle = (productTypeTitle || "").trim() || "general";
+    const normalizedSku = (sku || "").trim();
 
     setLoading(true);
     try {
@@ -117,6 +120,7 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
       if (initial?.id) {
         await updateProduct(initial.id, {
           name,
+          sku: normalizedSku || null,
           price: priceNum,
           stock: stockNum,
           category: normalizedTypeTitle,
@@ -128,6 +132,7 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
         saved = {
           ...(initial as Product),
           name,
+          sku: normalizedSku || null,
           price: priceNum,
           stock: stockNum,
           category: normalizedTypeTitle,
@@ -139,6 +144,7 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
       } else {
         const created = await createProduct({
           name,
+          sku: normalizedSku || null,
           price: priceNum,
           stock: stockNum,
           category: normalizedTypeTitle,
@@ -187,6 +193,20 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
                 required
                 disabled={loading}
               />
+            </div>
+
+            <div>
+              <label className="block text-sm mb-1">SKU</label>
+              <input
+                className="w-full rounded-xl border px-3 py-2 text-sm"
+                value={sku}
+                onChange={e => setSku(e.target.value)}
+                placeholder="Ingresá un número incremental"
+                disabled={loading}
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                No puede repetirse con otro producto activo.
+              </p>
             </div>
 
             <div>
