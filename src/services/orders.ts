@@ -123,9 +123,12 @@ export async function createOrder({
     const lastOrderNumber = Number(counterSnap.data()?.lastOrderNumber ?? 0);
     const nextOrderNumber = lastOrderNumber + 1;
 
-    tx.set(counterRef, { lastOrderNumber: nextOrderNumber }, { merge: true });
-
     const orderRef = doc(ORDERS, String(nextOrderNumber));
+    const productSnapshots: Array<{
+      ref: ReturnType<typeof doc>;
+      currentStock: number;
+      item: typeof cleanItems[number];
+    }> = [];
 
     for (const item of cleanItems) {
       const productRef = doc(db, "products", item.id);
@@ -138,7 +141,13 @@ export async function createOrder({
       if (currentStock < item.qty) {
         throw new Error(`No hay stock suficiente para "${item.name}".`);
       }
-      tx.update(productRef, {
+      productSnapshots.push({ ref: productRef, currentStock, item });
+    }
+
+    tx.set(counterRef, { lastOrderNumber: nextOrderNumber }, { merge: true });
+
+    for (const { ref, currentStock, item } of productSnapshots) {
+      tx.update(ref, {
         stock: currentStock - item.qty,
         updatedAt: serverTimestamp(),
       });
