@@ -255,17 +255,11 @@ export default function CatalogPage() {
     [items.length, categories.length, isLoggedIn, cartTotal]
   );
 
-  async function submitOrder(data) {
-    const { paymentMethod, ...customer } = data;
+  async function submitOrder(customer) {
     setOrderResult(null);
 
     if (!cart.length) {
       setOrderResult({ ok: false, error: "Tu carrito está vacío." });
-      return;
-    }
-
-    if (!paymentMethod) {
-      setOrderResult({ ok: false, error: "Seleccioná un método de pago." });
       return;
     }
 
@@ -295,7 +289,6 @@ export default function CatalogPage() {
       const orderId = await createOrder({
         customer,
         items: orderItems,
-        paymentMethod,
       });
       setOrderResult({ ok: true, orderId });
       const orderTotal = orderItems.reduce((acc, item) => acc + item.price * item.qty, 0);
@@ -306,7 +299,6 @@ export default function CatalogPage() {
         customer.email ? `Email: ${customer.email}` : null,
         customer.phone ? `Teléfono: ${customer.phone}` : null,
         customer.notes ? `Notas: ${customer.notes}` : null,
-        `Método de pago: ${paymentMethod === "cheque" ? "Cheque" : "Transferencia"}`,
         "",
         "Detalle del pedido:",
         ...orderItems.map((item) =>
@@ -935,7 +927,6 @@ function OrderModal({ open, onClose, submitting, result, onSubmit }) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("");
 
   useEffect(() => {
     if (!open) {
@@ -943,7 +934,6 @@ function OrderModal({ open, onClose, submitting, result, onSubmit }) {
       setEmail("");
       setPhone("");
       setNotes("");
-      setPaymentMethod("");
     }
   }, [open]);
 
@@ -981,7 +971,7 @@ function OrderModal({ open, onClose, submitting, result, onSubmit }) {
             className="mt-6 space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              onSubmit({ name, email, phone, notes, paymentMethod });
+              onSubmit({ name, email, phone, notes });
             }}
           >
             <div className="space-y-2">
@@ -1022,30 +1012,6 @@ function OrderModal({ open, onClose, submitting, result, onSubmit }) {
                 onChange={(e) => setNotes(e.target.value)}
               />
             </div>
-            <fieldset className="space-y-3 text-sm text-slate-600">
-              <legend className="text-xs font-medium uppercase tracking-wide text-slate-500">Método de pago</legend>
-              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-2">
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="cheque"
-                  checked={paymentMethod === "cheque"}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  required
-                />
-                Cheque
-              </label>
-              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-2">
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="transferencia"
-                  checked={paymentMethod === "transferencia"}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                />
-                Transferencia
-              </label>
-            </fieldset>
             <div className="flex justify-end gap-3">
               <button
                 type="button"
@@ -1055,7 +1021,7 @@ function OrderModal({ open, onClose, submitting, result, onSubmit }) {
                 Cancelar
               </button>
               <button
-                disabled={submitting || !paymentMethod}
+                disabled={submitting}
                 className="rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-200/60 transition focus:outline-none focus:ring-2 focus:ring-sky-400/60 disabled:opacity-60"
               >
                 <BusyButtonContent busy={submitting} busyLabel="Enviando…" label="Enviar pedido" />
