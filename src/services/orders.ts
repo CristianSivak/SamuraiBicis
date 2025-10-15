@@ -30,14 +30,11 @@ function sum(items: OrderItem[]) {
   return items.reduce((acc, it) => acc + Number(it.price || 0) * Number(it.qty || 0), 0);
 }
 
-export type PaymentMethod = "cheque" | "transferencia";
-
 export type OrderStatus = "solicitud" | "pendiente" | "pagada" | "cancelada";
 
 export type OrderRecord = {
   id: string;
   status: OrderStatus;
-  paymentMethod?: PaymentMethod | null;
   total?: number;
   customer?: (Customer & { uid?: string | null }) | null;
   items?: OrderItem[];
@@ -76,7 +73,6 @@ function toOrderRecord(id: string, snap: DocumentSnapshot<DocumentData>): OrderR
   return {
     id,
     status: normalizeStatus(data?.status),
-    paymentMethod: (data?.paymentMethod ?? null) as PaymentMethod | null,
     total: Number(data?.total ?? 0) || undefined,
     customer: data?.customer ?? null,
     items: normalizeItems(data?.items),
@@ -87,8 +83,8 @@ function toOrderRecord(id: string, snap: DocumentSnapshot<DocumentData>): OrderR
 }
 
 export async function createOrder({
-  customer, items, paymentMethod
-}: { customer: Customer; items: OrderItem[]; paymentMethod: PaymentMethod; }): Promise<string> {
+  customer, items,
+}: { customer: Customer; items: OrderItem[]; }): Promise<string> {
   // Esperar resolución de sesión (puede ser null si huésped)
   const user = auth.currentUser ?? await authReady();
 
@@ -100,10 +96,6 @@ export async function createOrder({
   })).filter(it => it.id && it.name && it.qty > 0);
 
   if (!cleanItems.length) throw new Error("Carrito vacío.");
-
-  if (!paymentMethod || !["cheque", "transferencia"].includes(paymentMethod)) {
-    throw new Error("Seleccioná un método de pago válido.");
-  }
 
   const now = serverTimestamp();
 
@@ -123,11 +115,20 @@ export async function createOrder({
     items: cleanItems,
     // Si está logueado envío el total; huéspedes mandan 0 (las reglas lo exigen)
     total: user ? sum(cleanItems) : 0,
-    paymentMethod,
   };
 
   const orderId = await runTransaction(db, async (tx) => {
-    const orderRef = doc(ORDERS);
+    const counterRef = doc(db, "meta", "orderCounter");
+    const counterSnap = await tx.get(counterRef);
+    const lastOrderNumber = Number(counterSnap.data()?.lastOrderNumber ?? 0);
+    const nextOrderNumber = lastOrderNumber + 1;
+
+    const orderRef = doc(ORDERS, String(nextOrderNumber));
+    const productSnapshots: Array<{
+      ref: ReturnType<typeof doc>;
+      currentStock: number;
+      item: typeof cleanItems[number];
+    }> = [];
 
     for (const item of cleanItems) {
       const productRef = doc(db, "products", item.id);
@@ -140,14 +141,20 @@ export async function createOrder({
       if (currentStock < item.qty) {
         throw new Error(`No hay stock suficiente para "${item.name}".`);
       }
-      tx.update(productRef, {
+      productSnapshots.push({ ref: productRef, currentStock, item });
+    }
+
+    tx.set(counterRef, { lastOrderNumber: nextOrderNumber }, { merge: true });
+
+    for (const { ref, currentStock, item } of productSnapshots) {
+      tx.update(ref, {
         stock: currentStock - item.qty,
         updatedAt: serverTimestamp(),
       });
     }
 
     tx.set(orderRef, payload);
-    return orderRef.id;
+    return String(nextOrderNumber);
   });
 
   return orderId;
