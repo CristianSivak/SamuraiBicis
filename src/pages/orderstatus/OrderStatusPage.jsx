@@ -18,11 +18,6 @@ const statusStyles = {
   cancelada: "border-rose-200 bg-rose-50 text-rose-700",
 };
 
-const paymentLabels = {
-  transferencia: "Transferencia bancaria",
-  cheque: "Cheque",
-};
-
 const baseSteps = [
   {
     id: "solicitud",
@@ -265,11 +260,6 @@ function OrderSummary({ order }) {
           </div>
           <div className="flex flex-col items-start gap-4 lg:items-end">
             <StatusBadge status={order.status} />
-            {order.paymentMethod ? (
-              <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-600">
-                Método de pago: <span className="font-semibold text-slate-900">{paymentLabels[order.paymentMethod] || order.paymentMethod}</span>
-              </div>
-            ) : null}
             {typeof order.total === "number" && order.total > 0 ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/40">
                 Total declarado: {formatMoney(order.total)}

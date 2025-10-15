@@ -27,7 +27,12 @@ service cloud.firestore {
       allow read: if true ;
       allow write: if true ;
     }
-    
+
+    // Metadatos varios (contadores, etc.)
+    match /meta/{id} {
+      allow read, write: if true;
+    }
+
     // tipos de usuario
      match /customerTypes/{doc} {
       allow read, write: if true;

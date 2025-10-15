@@ -197,7 +197,6 @@ export default function Orders() {
               <th className="px-4 py-3 text-left">Comentario</th>
               <th className="px-4 py-3 text-left">Fecha</th>
               <th className="px-4 py-3 text-left">Estado</th>
-              <th className="px-4 py-3 text-left">Método de pago</th>
               <th className="px-4 py-3 text-right">Total</th>
               <th className="px-4 py-3 text-right">Acciones</th>
             </tr>
@@ -223,7 +222,6 @@ export default function Orders() {
                     {o.status}
                   </span>
                 </td>
-                <td className="px-4 py-4 capitalize">{o.paymentMethod || "-"}</td>
                 <td className="px-4 py-4 text-right font-semibold text-slate-900">{money(o.total || 0)}</td>
                 <td className="px-4 py-4">
                   <div className="flex justify-end gap-2">
@@ -259,11 +257,11 @@ export default function Orders() {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr>
-                <td className="px-4 py-12 text-center text-slate-500" colSpan={10}>
-                  {loading ? "Cargando órdenes…" : "Sin resultados."}
-                </td>
-              </tr>
+                <tr>
+                  <td className="px-4 py-12 text-center text-slate-500" colSpan={9}>
+                    {loading ? "Cargando órdenes…" : "Sin resultados."}
+                  </td>
+                </tr>
             )}
           </tbody>
         </table>
