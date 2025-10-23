@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import imgBanner from "../../../public/img/banner.png";
 
 const quickHighlights = [
   {
@@ -19,12 +18,26 @@ const quickHighlights = [
   },
 ];
 
+const contactHighlights = [
+  {
+    id: "email",
+    label: "Contacto comercial",
+    title: "ventas@samurai.ar",
+    description: "Coordinamos activaciones y reposiciones a tu ritmo.",
+  },
+  {
+    id: "phone",
+    label: "Teléfono y WhatsApp",
+    title: "3624405220",
+    description: "Hablá directo con nuestro equipo mayorista.",
+  },
+];
+
 export default function HeroSection({
   onLogin,
   onSignup,
   title = "Mayorista de bicipartes para comercios que quieren crecer",
   subtitle = "Centralizá compras, stock y lanzamientos exclusivos con un ecosistema pensado para tu tienda.",
-  bannerSrc = imgBanner,
 }) {
   const PrimaryAction = onSignup ? (
     <button
@@ -111,36 +124,40 @@ export default function HeroSection({
 
           <div className="relative">
             <div className="absolute inset-0 -translate-y-6 scale-[1.08] rounded-[3.25rem] bg-gradient-to-br from-slate-100 via-white to-transparent opacity-80 blur-3xl" aria-hidden="true" />
-            <div className="relative isolate overflow-hidden rounded-[2.8rem] border border-slate-200 bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.2)] backdrop-blur-sm">
+            <div className="relative isolate overflow-hidden rounded-[2.8rem] border border-slate-200 bg-white p-8 shadow-[0_30px_80px_rgba(15,23,42,0.2)] backdrop-blur-sm">
               <div className="absolute right-6 top-6 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
-                Stock en vivo
+                Equipo comercial activo
               </div>
-              <div className="relative overflow-hidden rounded-[2.2rem] border border-slate-200 bg-slate-100">
-                <div className="absolute -left-10 -top-10 h-36 w-36 rounded-full bg-sky-200/60 blur-3xl" aria-hidden="true" />
-                <img
-                  src={bannerSrc}
-                  alt="Catálogo mayorista"
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                />
-              </div>
-              <div className="mt-6 flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-slate-400">
-                    Pedido promedio
-                  </p>
-                  <p className="text-base font-semibold text-slate-900">
-                    $156.000
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-900">
-                    ↑18%
-                  </span>
-                  <p className="text-xs text-slate-500">
-                    Crecimiento interanual de clientes activos.
-                  </p>
+              <div className="absolute -right-16 top-24 h-48 w-48 rounded-full bg-gradient-to-br from-sky-200/70 via-blue-200/50 to-transparent blur-3xl" aria-hidden="true" />
+              <div className="absolute -left-20 bottom-0 h-60 w-60 rounded-full bg-gradient-to-tr from-emerald-200/70 via-teal-200/50 to-transparent blur-3xl" aria-hidden="true" />
+              <div className="relative rounded-[2.2rem] border border-slate-200 bg-white/80 p-8">
+                <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-sky-600">
+                  Alianzas mayoristas
+                </span>
+                <h3 className="mt-6 text-2xl font-semibold text-slate-900">
+                  Operamos cerca de tu negocio
+                </h3>
+                <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                  Coordinamos lanzamientos, logística y soporte comercial con un equipo que entiende el mercado mayorista.
+                </p>
+                <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                  {contactHighlights.map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-2xl border border-slate-200 bg-white/85 p-5 shadow-[0_24px_55px_-35px_rgba(15,23,42,0.35)] transition duration-300"
+                    >
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                        {item.label}
+                      </p>
+                      <p className="mt-2 text-base font-semibold text-slate-900">
+                        {item.title}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {item.description}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

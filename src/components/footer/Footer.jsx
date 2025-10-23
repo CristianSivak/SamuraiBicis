@@ -8,28 +8,14 @@ const navLinks = [
 ];
 
 const contactInfo = [
-  { label: "contacto@tusitio.com", href: "mailto:contacto@tusitio.com" },
-  { label: "+54 9 11 2233 4455", href: "tel:+5491122334455" },
+  { label: "ventas@samurai.ar", href: "mailto:ventas@samurai.ar" },
+  { label: "3624405220", href: "tel:+543624405220" },
 ];
 
 const socials = [
   {
-    label: "Facebook",
-    href: "https://facebook.com",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        className="h-5 w-5"
-      >
-        <path d="M13.5 8.25V6.75C13.5 6.33579 13.8358 6 14.25 6H15.75C16.1642 6 16.5 5.66421 16.5 5.25V3.75C16.5 3.33579 16.1642 3 15.75 3H13.5C11.8431 3 10.5 4.34315 10.5 6V8.25H9C8.58579 8.25 8.25 8.58579 8.25 9V10.5C8.25 10.9142 8.58579 11.25 9 11.25H10.5V20.25C10.5 20.6642 10.8358 21 11.25 21H13.5C13.9142 21 14.25 20.6642 14.25 20.25V11.25H15.9097C16.2903 11.25 16.6179 10.9662 16.6643 10.5884L16.8468 9.08838C16.9061 8.60098 16.5232 8.19725 16.0322 8.19725H14.25C13.8358 8.19725 13.5 8.53204 13.5 8.94625V8.25Z" />
-      </svg>
-    ),
-  },
-  {
     label: "Instagram",
-    href: "https://instagram.com",
+    href: "https://www.instagram.com/samuraibikes.oficial/",
     icon: (
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -45,7 +31,7 @@ const socials = [
   },
   {
     label: "WhatsApp",
-    href: "https://wa.me/5491122334455",
+    href: "https://wa.me/543624405220",
     icon: (
       <svg
         xmlns="http://www.w3.org/2000/svg"
