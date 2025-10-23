@@ -439,7 +439,7 @@ function SupportCard() {
         <li>Verificá si generaste la orden con otro correo electrónico o usuario.</li>
         <li>Los pedidos creados como invitado no aparecen aquí hasta que los asociemos a tu cuenta.</li>
         <li>
-          Escribinos a <a className="text-sky-600 underline" href="mailto:ventas@samuraibicis.com">ventas@samuraibicis.com</a> y te ayudamos al instante.
+          Escribinos a <a className="text-sky-600 underline" href="mailto:ventas@samurai.ar">ventas@samurai.ar</a> y te ayudamos al instante.
         </li>
       </ul>
     </div>

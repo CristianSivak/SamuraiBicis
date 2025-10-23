@@ -1,59 +1,56 @@
-export const valueProps = [
+export const identityStatements = [
   {
-    id: 'inventory',
-    title: 'Stock sincronizado',
+    id: 'mission',
+    title: 'Misión',
     description:
-      'Disponibilidad actualizada al instante gracias a la integración con nuestro ERP y depósitos.',
-    icon: 'radar',
-    accent: 'from-sky-500/70 via-cyan-400/70 to-emerald-400/60',
-    badge: 'Actualización minuto a minuto',
+      'Acompañar al mayorista ofreciendo bicicletas de calidad con una marca sólida y cercana.',
+    accent: 'from-sky-400/70 via-cyan-400/60 to-emerald-400/60',
   },
   {
-    id: 'experience',
-    title: 'Experiencia omnicanal',
+    id: 'vision',
+    title: 'Visión',
     description:
-      'Mostrá precios exclusivos, promos segmentadas y herramientas de venta para tu equipo comercial.',
-    icon: 'spark',
-    accent: 'from-indigo-500/70 via-violet-500/70 to-fuchsia-500/70',
-    badge: 'Personalización total',
-  },
-  {
-    id: 'logistics',
-    title: 'Logística optimizada',
-    description:
-      'Despachos diarios con seguimiento y retiro coordinado para que tus clientes reciban antes.',
-    icon: 'route',
-    accent: 'from-amber-500/80 via-orange-500/70 to-rose-500/70',
-    badge: 'Cobertura nacional',
-  },
-  {
-    id: 'support',
-    title: 'Equipo comercial dedicado',
-    description:
-      'Acompañamiento personalizado, capacitaciones y tableros en vivo para medir tu negocio.',
-    icon: 'headset',
-    accent: 'from-emerald-500/70 via-teal-400/70 to-sky-400/70',
-    badge: 'Respuesta en horas',
+      'Ser la marca referente por su cercanía con el mayorista, transparencia y alianzas sostenibles.',
+    accent: 'from-indigo-500/70 via-violet-500/60 to-fuchsia-500/60',
   },
 ];
 
-export const workflowTimeline = [
+export const coreValues = [
   {
-    id: '01',
-    title: 'Solicitá tu acceso',
-    description: 'Completá el formulario con los datos de tu comercio y recibí asesoramiento en minutos.',
+    id: 'value-1',
+    title: 'Cercanía con el mayorista',
+    description: 'Escuchamos cada necesidad y respondemos con acompañamiento permanente.',
+    accent: 'from-sky-200/70 via-transparent to-transparent',
   },
   {
-    id: '02',
-    title: 'Configuramos tu perfil',
-    description:
-      'Validamos tu condición fiscal, activamos listas a medida y configuramos múltiples usuarios.',
+    id: 'value-2',
+    title: 'Simplicidad y agilidad',
+    description: 'Simplificamos procesos para que comprar y reponer sea rápido y claro.',
+    accent: 'from-emerald-200/70 via-transparent to-transparent',
   },
   {
-    id: '03',
-    title: 'Comprá en modo mayorista',
-    description:
-      'Ingresá al catálogo con precios netos, stock real y seguimiento de pedidos en un solo lugar.',
+    id: 'value-3',
+    title: 'Calidad accesible',
+    description: 'Seleccionamos productos confiables con precios competitivos y estables.',
+    accent: 'from-amber-200/70 via-transparent to-transparent',
+  },
+  {
+    id: 'value-4',
+    title: 'Rentabilidad compartida',
+    description: 'Diseñamos acuerdos que cuidan los márgenes de toda la cadena comercial.',
+    accent: 'from-rose-200/70 via-transparent to-transparent',
+  },
+  {
+    id: 'value-5',
+    title: 'Transparencia y compromiso',
+    description: 'Comunicamos stock, precios y entregas con total claridad para generar confianza.',
+    accent: 'from-indigo-200/70 via-transparent to-transparent',
+  },
+  {
+    id: 'value-6',
+    title: 'Innovación práctica',
+    description: 'Implementamos herramientas útiles que suman valor concreto al mayorista.',
+    accent: 'from-cyan-200/70 via-transparent to-transparent',
   },
 ];
 

@@ -309,7 +309,7 @@ export default function CatalogPage() {
         orderId ? `ID de pedido: ${orderId}` : null,
       ].filter(Boolean);
       const whatsappMessage = encodeURIComponent(lines.join("\n"));
-      const whatsappNumber = "5491122334455";
+      const whatsappNumber = "543624405220";
       window.open(`https://wa.me/${whatsappNumber}?text=${whatsappMessage}`, "_blank");
       setItems((prev) =>
         prev.map((product) => {
