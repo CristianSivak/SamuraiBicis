@@ -15,6 +15,8 @@ const ALLOWED_ORIGINS = new Set([
   "http://localhost:5173",
   "https://bikeshop-ab2f0.web.app",
   "https://bikeshop-ab2f0.firebaseapp.com",
+  "http://www.samurai.ar",
+  "https://www.samurai.ar",
 ]);
 
 function setCorsHeaders(req, res) {
