@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createProduct, updateProduct, type Product } from "../../services/products";
 // Or create the file at ../services/product.ts and export the required members.
 import { subscribeProductTypes, type ProductType } from "../../services/productTypes";
+import { fetchOfficialUsdArsRate } from "../../services/exchangeRates";
 
 const LEGACY_PREFIX = "legacy:";
 
@@ -32,6 +33,7 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
   const [name, setName] = useState(initial?.name || "");
   const [sku, setSku] = useState(initial?.sku ? String(initial.sku) : "");
   const [price, setPrice] = useState<number | string>(initial?.price ?? 0);
+  const [priceUsd, setPriceUsd] = useState<string>("");
   const [stock, setStock] = useState<number | string>(initial?.stock ?? 0);
   const [active, setActive] = useState<boolean>(initial?.active ?? true);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -45,12 +47,17 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
   const [productTypeTitle, setProductTypeTitle] = useState<string>(
     (initial?.productTypeTitle || initial?.category || "general") as string
   );
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null);
+  const [exchangeRateDate, setExchangeRateDate] = useState<string | null>(null);
+  const [exchangeRateLoading, setExchangeRateLoading] = useState(false);
+  const [exchangeRateError, setExchangeRateError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setName(initial?.name || "");
     setSku(initial?.sku ? String(initial.sku) : "");
     setPrice(initial?.price ?? 0);
+    setPriceUsd("");
     setStock(initial?.stock ?? 0);
     setActive(initial?.active ?? true);
     setImageFile(null);
@@ -67,6 +74,50 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
     setProductTypeId(initial?.productTypeId ? String(initial.productTypeId) : null);
     setProductTypeTitle(nextTypeTitle);
   }, [initial, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    setExchangeRateLoading(true);
+    setExchangeRateError(null);
+    fetchOfficialUsdArsRate(controller.signal)
+      .then(({ value, date }) => {
+        setExchangeRate(value);
+        setExchangeRateDate(date);
+      })
+      .catch((err: any) => {
+        if (err?.name === "AbortError") return;
+        console.error("Error fetching official exchange rate", err);
+        setExchangeRate(null);
+        setExchangeRateDate(null);
+        setExchangeRateError(
+          "No se pudo obtener el tipo de cambio oficial. Ingresá el precio en pesos manualmente."
+        );
+      })
+      .finally(() => setExchangeRateLoading(false));
+
+    return () => controller.abort();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!exchangeRate || !Number.isFinite(exchangeRate) || exchangeRate <= 0) {
+      if (initial?.id) {
+        setPriceUsd("");
+      }
+      return;
+    }
+
+    if (initial?.price != null) {
+      const priceNumber = Number(initial.price);
+      if (Number.isFinite(priceNumber)) {
+        const usdValue = priceNumber / exchangeRate;
+        setPriceUsd(usdValue.toFixed(2));
+      } else {
+        setPriceUsd("");
+      }
+    }
+  }, [open, initial?.id, initial?.price, exchangeRate]);
 
   useEffect(() => {
     const unsubscribe = subscribeProductTypes(
@@ -206,6 +257,48 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
               />
               <p className="mt-1 text-xs text-slate-500">
                 No puede repetirse con otro producto activo.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm mb-1">Precio (USD)</label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                className="w-full rounded-xl border px-3 py-2 text-sm"
+                value={priceUsd}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  setPriceUsd(raw);
+                  if (!exchangeRate || exchangeRate <= 0) return;
+                  if (raw === "") {
+                    setPrice("");
+                    return;
+                  }
+                  const usdValue = Number(raw);
+                  if (!Number.isFinite(usdValue)) return;
+                  const arsValue = usdValue * exchangeRate;
+                  if (!Number.isFinite(arsValue)) return;
+                  setPrice((arsValue || 0).toFixed(2));
+                }}
+                disabled={loading || exchangeRateLoading || !exchangeRate}
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                {exchangeRateLoading && "Obteniendo tipo de cambio oficial..."}
+                {!exchangeRateLoading && exchangeRate && (
+                  <span>
+                    Tipo de cambio oficial: $ {exchangeRate.toFixed(2)} ARS por USD
+                    {exchangeRateDate
+                      ? ` (actualizado al ${new Intl.DateTimeFormat("es-AR").format(
+                          new Date(exchangeRateDate)
+                        )})`
+                      : ""}
+                  </span>
+                )}
+                {!exchangeRateLoading && exchangeRateError && (
+                  <span className="text-red-500">{exchangeRateError}</span>
+                )}
               </p>
             </div>
 
