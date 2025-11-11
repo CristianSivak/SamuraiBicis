@@ -8,7 +8,7 @@ const navLinks = [
 ];
 
 const contactInfo = [
-  { label: "ventas@samurai.ar", href: "mailto:ventas@samurai.ar" },
+  { label: "medinaleoariel@hotmail.com", href: "mailto:medinaleoariel@hotmail.com" },
   { label: "3624405220", href: "tel:+543624405220" },
 ];
 

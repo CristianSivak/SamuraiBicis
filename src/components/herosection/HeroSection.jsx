@@ -22,7 +22,7 @@ const contactHighlights = [
   {
     id: "email",
     label: "Contacto comercial",
-    title: "ventas@samurai.ar",
+    title: "medinaleoariel@hotmail.com",
     description: "Coordinamos activaciones y reposiciones a tu ritmo.",
   },
   {
