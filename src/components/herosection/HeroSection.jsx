@@ -157,7 +157,7 @@ export default function HeroSection({
                       <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                         {item.label}
                       </p>
-                      <p className="mt-2 text-base font-semibold text-slate-900">
+                      <p className="mt-2 break-words text-base font-semibold text-slate-900">
                         {item.title}
                       </p>
                       <p className="mt-1 text-sm text-slate-600">
