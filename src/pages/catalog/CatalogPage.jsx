@@ -68,6 +68,7 @@ export default function CatalogPage() {
   const [exchangeRateDate, setExchangeRateDate] = useState(null);
   const [exchangeRateLoading, setExchangeRateLoading] = useState(false);
   const [exchangeRateError, setExchangeRateError] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -399,6 +400,7 @@ export default function CatalogPage() {
 
   const showSkeleton = loading && !initialLoaded;
   const showOverlay = loading && initialLoaded;
+  const closeProductModal = () => setSelectedProduct(null);
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
@@ -536,6 +538,7 @@ export default function CatalogPage() {
                   discount={discount}
                   onAdd={addToCart}
                   exchangeRate={exchangeRate}
+                  onSelect={setSelectedProduct}
                 />
               )}
             </div>
@@ -578,6 +581,19 @@ export default function CatalogPage() {
           setOrderResult(null);
         }}
         products={items}
+      />
+
+      <ProductModal
+        product={selectedProduct}
+        onClose={closeProductModal}
+        isLoggedIn={isLoggedIn}
+        discount={discount}
+        exchangeRate={exchangeRate}
+        onAdd={(product) => {
+          addToCart(product);
+          closeProductModal();
+          setCartOpen(true);
+        }}
       />
 
       <OrderModal
@@ -725,7 +741,7 @@ function ActiveFilters({ categories, selected, onRemove, onClear }) {
   );
 }
 
-function ProductGrid({ items, isLoggedIn, discount = 0, onAdd, exchangeRate }) {
+function ProductGrid({ items, isLoggedIn, discount = 0, onAdd, exchangeRate, onSelect }) {
   if (!items.length) {
     return (
       <div className="rounded-3xl border border-dashed border-slate-300/60 bg-white p-12 text-center text-sm text-slate-500">
@@ -743,6 +759,7 @@ function ProductGrid({ items, isLoggedIn, discount = 0, onAdd, exchangeRate }) {
             discount={discount}
             onAdd={onAdd}
             exchangeRate={exchangeRate}
+            onSelect={() => onSelect?.(p)}
           />
         </li>
       ))}
@@ -769,7 +786,7 @@ function ProductGridSkeleton({ count = 8 }) {
   );
 }
 
-function ProductCard({ product, onAdd, discount = 0, isLoggedIn, exchangeRate }) {
+function ProductCard({ product, onAdd, discount = 0, isLoggedIn, exchangeRate, onSelect }) {
   const available = (product.stock ?? 0) > 0;
   const effectiveDiscount = Number.isFinite(Number(discount)) ? Number(discount) : 0;
   const priceUsd = Number(product?.price || 0);
@@ -783,7 +800,18 @@ function ProductCard({ product, onAdd, discount = 0, isLoggedIn, exchangeRate })
     discountedPriceArs !== basePriceArs &&
     basePriceArs > 0;
   return (
-    <article className="group relative h-full overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_30px_60px_-35px_rgba(15,23,42,0.18)] transition duration-200 hover:-translate-y-1 hover:border-sky-500/60">
+    <article
+      className="group relative h-full overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_30px_60px_-35px_rgba(15,23,42,0.18)] transition duration-200 hover:-translate-y-1 hover:border-sky-500/60"
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect?.(product)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect?.(product);
+        }
+      }}
+    >
       <div className="aspect-square w-full overflow-hidden rounded-2xl bg-slate-100">
         {product.imageUrl ? (
           <img
@@ -866,7 +894,10 @@ function ProductCard({ product, onAdd, discount = 0, isLoggedIn, exchangeRate })
         ) : null}
         <button
           disabled={!available}
-          onClick={() => onAdd(product)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onAdd(product);
+          }}
           className={`flex w-full items-center justify-center rounded-2xl px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-sky-400/60 ${
             available
               ? "bg-gradient-to-r from-sky-500 to-indigo-500 text-white shadow-lg shadow-sky-200/60 hover:-translate-y-0.5"
@@ -877,6 +908,124 @@ function ProductCard({ product, onAdd, discount = 0, isLoggedIn, exchangeRate })
         </button>
       </div>
     </article>
+  );
+}
+
+function ProductModal({ product, onClose, isLoggedIn, discount = 0, exchangeRate, onAdd }) {
+  if (!product) return null;
+  const available = (product.stock ?? 0) > 0;
+  const effectiveDiscount = Number.isFinite(Number(discount)) ? Number(discount) : 0;
+  const priceUsd = Number(product?.price || 0);
+  const priceArs = toArs(priceUsd, exchangeRate);
+  const basePriceArs = Number.isFinite(priceArs) ? priceArs : priceUsd;
+  const discountedPriceArs = getEffectivePrice(basePriceArs, effectiveDiscount, isLoggedIn);
+  const discountedPriceUsd = getEffectivePrice(priceUsd, effectiveDiscount, isLoggedIn);
+  const hasDiscount =
+    isLoggedIn && effectiveDiscount > 0 && discountedPriceArs !== basePriceArs && basePriceArs > 0;
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-4xl rounded-3xl border border-slate-200 bg-white shadow-2xl">
+        <button
+          className="absolute right-4 top-4 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600 transition hover:bg-slate-200"
+          onClick={onClose}
+        >
+          Cerrar
+        </button>
+        <div className="grid gap-6 p-6 md:grid-cols-2">
+          <div className="overflow-hidden rounded-2xl bg-slate-100">
+            {product.imageUrl ? (
+              <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full min-h-[280px] items-center justify-center text-sm text-slate-600">Sin imagen</div>
+            )}
+          </div>
+          <div className="space-y-4 text-slate-700">
+            {product.brand ? (
+              <p className="text-xs uppercase tracking-wide text-slate-500">{product.brand}</p>
+            ) : null}
+            <h3 className="text-2xl font-semibold text-slate-900">{product.name}</h3>
+            {product.description ? (
+              <p className="text-sm leading-relaxed text-slate-700 whitespace-pre-line">{product.description}</p>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+              <span
+                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 font-medium ${
+                  available ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                <span className="h-2.5 w-2.5 rounded-full bg-current" />
+                {available ? "Disponible" : "Sin stock"}
+              </span>
+              {Number.isFinite(product?.stock) ? (
+                <span className="rounded-full bg-slate-50 px-3 py-1.5 font-medium text-slate-600">Stock: {product.stock}</span>
+              ) : null}
+              {product.category ? (
+                <span className="rounded-full bg-slate-50 px-3 py-1.5 font-medium text-slate-600">Categoría: {product.category}</span>
+              ) : null}
+            </div>
+            <div className="space-y-1 text-sm font-medium text-slate-900">
+              {isLoggedIn ? (
+                <>
+                  {Number.isFinite(priceArs) ? (
+                    hasDiscount ? (
+                      <>
+                        <span className="mr-2 text-base font-semibold line-through text-slate-400">{money(basePriceArs)}</span>
+                        <span className="text-2xl font-semibold">{money(discountedPriceArs)}</span>
+                      </>
+                    ) : (
+                      <span className="text-2xl font-semibold">{money(discountedPriceArs)}</span>
+                    )
+                  ) : (
+                    <span className="text-2xl font-semibold">{formatUsd(discountedPriceUsd)}</span>
+                  )}
+                  <div className="text-xs font-medium text-slate-600">
+                    {hasDiscount ? (
+                      <>
+                        <span className="mr-2 line-through text-slate-400">{formatUsd(priceUsd)}</span>
+                        <span>{formatUsd(discountedPriceUsd)} USD</span>
+                      </>
+                    ) : (
+                      <span>{formatUsd(discountedPriceUsd)} USD</span>
+                    )}
+                  </div>
+                  {hasDiscount ? (
+                    <p className="text-xs text-emerald-600">Descuento activo del {effectiveDiscount}%.</p>
+                  ) : null}
+                </>
+              ) : (
+                <p className="text-sm text-slate-600">Iniciá sesión para ver precios.</p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-3 text-xs text-slate-600">
+              {product.sku ? <span className="rounded-full bg-slate-50 px-3 py-1.5">SKU: {product.sku}</span> : null}
+              {product.reference ? (
+                <span className="rounded-full bg-slate-50 px-3 py-1.5">Referencia: {product.reference}</span>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                disabled={!available}
+                onClick={() => onAdd?.(product)}
+                className={`flex items-center justify-center rounded-2xl px-5 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-sky-400/60 ${
+                  available
+                    ? "bg-gradient-to-r from-sky-500 to-indigo-500 text-white shadow-lg shadow-sky-200/60 hover:-translate-y-0.5"
+                    : "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-500"
+                }`}
+              >
+                Agregar al carrito
+              </button>
+              <button
+                onClick={onClose}
+                className="rounded-2xl border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
