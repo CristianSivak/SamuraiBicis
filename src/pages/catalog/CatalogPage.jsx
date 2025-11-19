@@ -4,10 +4,23 @@ import { useAuth } from "../../auth/AuthContext";
 import { listProducts } from "../../services/products";
 import { createOrder } from "../../services/orders";
 import { getCustomerTypeById } from "../../services/customerTypes";
+import { fetchOfficialUsdArsRate } from "../../services/exchangeRates";
 import { LoadingOverlay, BusyButtonContent } from "../../components/ui/LoadingIndicators";
 
 const money = (n) =>
   Number(n || 0).toLocaleString("es-AR", { style: "currency", currency: "ARS" });
+
+const formatUsd = (n) =>
+  Number(n || 0).toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+const toArs = (usdPrice, exchangeRate) => {
+  const rate = Number(exchangeRate);
+  const usd = Number(usdPrice ?? 0);
+  if (!Number.isFinite(rate) || rate <= 0) return null;
+  if (!Number.isFinite(usd)) return null;
+  const ars = usd * rate;
+  return Number.isFinite(ars) ? ars : null;
+};
 
 const getEffectivePrice = (price, discount, isLoggedIn) => {
   const basePrice = Number(price || 0);
@@ -51,6 +64,10 @@ export default function CatalogPage() {
   const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [orderResult, setOrderResult] = useState(null);
   const [discount, setDiscount] = useState(0);
+  const [exchangeRate, setExchangeRate] = useState(null);
+  const [exchangeRateDate, setExchangeRateDate] = useState(null);
+  const [exchangeRateLoading, setExchangeRateLoading] = useState(false);
+  const [exchangeRateError, setExchangeRateError] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -82,6 +99,29 @@ export default function CatalogPage() {
       active = false;
     };
   }, [profile?.customerTypeId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setExchangeRateLoading(true);
+    setExchangeRateError(null);
+    fetchOfficialUsdArsRate(controller.signal)
+      .then(({ value, date }) => {
+        setExchangeRate(value);
+        setExchangeRateDate(date);
+      })
+      .catch((err) => {
+        if (err?.name === "AbortError") return;
+        console.error("Error obteniendo tipo de cambio oficial", err);
+        setExchangeRate(null);
+        setExchangeRateDate(null);
+        setExchangeRateError(
+          "No pudimos actualizar el tipo de cambio. Mostramos los valores en USD hasta que vuelva a estar disponible."
+        );
+      })
+      .finally(() => setExchangeRateLoading(false));
+
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -121,11 +161,15 @@ export default function CatalogPage() {
           continue;
         }
         const clampedQty = Math.min(item.qty, stock);
+        const latestPriceUsd = Number(product?.price ?? item.priceUsd ?? 0);
         if (clampedQty !== item.qty) {
           changed = true;
-          next.push({ ...item, qty: clampedQty });
+          next.push({ ...item, qty: clampedQty, priceUsd: latestPriceUsd });
         } else {
-          next.push(item);
+          const needsUpdate = item.priceUsd !== latestPriceUsd || item.imageUrl !== product.imageUrl;
+          next.push(
+            needsUpdate ? { ...item, priceUsd: latestPriceUsd, imageUrl: product.imageUrl } : item
+          );
         }
       }
       if (!changed && next.length === prev.length) return prev;
@@ -164,6 +208,13 @@ export default function CatalogPage() {
       );
     }
 
+    const priceValue = (product) => {
+      const ars = toArs(product.price, exchangeRate);
+      const usd = Number(product.price || 0);
+      if (Number.isFinite(ars)) return ars;
+      return Number.isFinite(usd) ? usd : 0;
+    };
+
     switch (sort) {
       case "name":
         list = [...list].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
@@ -176,16 +227,16 @@ export default function CatalogPage() {
         });
         break;
       case "priceAsc":
-        list = [...list].sort((a, b) => (a.price || 0) - (b.price || 0));
+        list = [...list].sort((a, b) => priceValue(a) - priceValue(b));
         break;
       case "priceDesc":
-        list = [...list].sort((a, b) => (b.price || 0) - (a.price || 0));
+        list = [...list].sort((a, b) => priceValue(b) - priceValue(a));
         break;
       default:
         break;
     }
     return list;
-  }, [items, selectedCats, search, sort]);
+  }, [items, selectedCats, search, sort, exchangeRate]);
 
   const addToCart = (p) => {
     const availableStock = Number(p?.stock ?? 0);
@@ -212,7 +263,7 @@ export default function CatalogPage() {
         {
           id: p.id,
           name: p.name,
-          price: Number(p.price || 0),
+          priceUsd: Number(p.price || 0),
           imageUrl: p.imageUrl || "",
           qty: 1,
         },
@@ -237,10 +288,19 @@ export default function CatalogPage() {
   const cartTotal = useMemo(
     () =>
       cart.reduce(
-        (acc, it) => acc + getEffectivePrice(it.price, discount, isLoggedIn) * it.qty,
+        (acc, it) => {
+          const baseArs = toArs(it.priceUsd, exchangeRate);
+          const fallback = Number(it.priceUsd || 0);
+          const unitArs = getEffectivePrice(
+            Number.isFinite(baseArs) ? baseArs : fallback,
+            discount,
+            isLoggedIn
+          );
+          return acc + unitArs * it.qty;
+        },
         0
       ),
-    [cart, discount, isLoggedIn]
+    [cart, discount, isLoggedIn, exchangeRate]
   );
 
   const stats = useMemo(
@@ -263,12 +323,20 @@ export default function CatalogPage() {
       return;
     }
 
-    const orderItems = cart.map(({ id, name, price, qty }) => ({
-      id,
-      name,
-      price: getEffectivePrice(price, discount, isLoggedIn),
-      qty,
-    }));
+    const orderItems = cart.map(({ id, name, priceUsd, qty }) => {
+      const baseArs = toArs(priceUsd, exchangeRate);
+      const fallback = Number(priceUsd || 0);
+      return {
+        id,
+        name,
+        price: getEffectivePrice(
+          Number.isFinite(baseArs) ? baseArs : fallback,
+          discount,
+          isLoggedIn
+        ),
+        qty,
+      };
+    });
     const shortages = orderItems.filter((item) => {
       const product = items.find((p) => p.id === item.id);
       const available = Number(product?.stock ?? 0);
@@ -362,6 +430,22 @@ export default function CatalogPage() {
                   </div>
                 ))}
               </dl>
+              <div className="text-xs text-slate-500">
+                {exchangeRateLoading && <span>Actualizando tipo de cambio…</span>}
+                {!exchangeRateLoading && exchangeRate && (
+                  <span>
+                    Conversión aplicada: $ {Number(exchangeRate).toFixed(2)} ARS por USD
+                    {exchangeRateDate
+                      ? ` (actualizado al ${new Intl.DateTimeFormat("es-AR").format(
+                          new Date(exchangeRateDate)
+                        )})`
+                      : ""}
+                  </span>
+                )}
+                {!exchangeRateLoading && exchangeRateError && (
+                  <span className="text-amber-600">{exchangeRateError}</span>
+                )}
+              </div>
             </div>
             <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_40px_70px_-35px_rgba(15,23,42,0.18)]">
               <div className="absolute -right-20 top-1/2 h-60 w-60 -translate-y-1/2 rounded-full bg-sky-200/60 blur-3xl" />
@@ -451,6 +535,7 @@ export default function CatalogPage() {
                   isLoggedIn={isLoggedIn}
                   discount={discount}
                   onAdd={addToCart}
+                  exchangeRate={exchangeRate}
                 />
               )}
             </div>
@@ -477,6 +562,7 @@ export default function CatalogPage() {
         total={cartTotal}
         isLoggedIn={isLoggedIn}
         discount={discount}
+        exchangeRate={exchangeRate}
         onCheckout={() => {
           const hasIssues = cart.some((item) => {
             const product = items.find((p) => p.id === item.id);
@@ -639,7 +725,7 @@ function ActiveFilters({ categories, selected, onRemove, onClear }) {
   );
 }
 
-function ProductGrid({ items, isLoggedIn, discount = 0, onAdd }) {
+function ProductGrid({ items, isLoggedIn, discount = 0, onAdd, exchangeRate }) {
   if (!items.length) {
     return (
       <div className="rounded-3xl border border-dashed border-slate-300/60 bg-white p-12 text-center text-sm text-slate-500">
@@ -651,7 +737,13 @@ function ProductGrid({ items, isLoggedIn, discount = 0, onAdd }) {
     <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {items.map((p) => (
         <li key={p.id}>
-          <ProductCard product={p} isLoggedIn={isLoggedIn} discount={discount} onAdd={onAdd} />
+          <ProductCard
+            product={p}
+            isLoggedIn={isLoggedIn}
+            discount={discount}
+            onAdd={onAdd}
+            exchangeRate={exchangeRate}
+          />
         </li>
       ))}
     </ul>
@@ -677,13 +769,19 @@ function ProductGridSkeleton({ count = 8 }) {
   );
 }
 
-function ProductCard({ product, onAdd, discount = 0, isLoggedIn }) {
+function ProductCard({ product, onAdd, discount = 0, isLoggedIn, exchangeRate }) {
   const available = (product.stock ?? 0) > 0;
   const effectiveDiscount = Number.isFinite(Number(discount)) ? Number(discount) : 0;
-  const basePrice = Number(product?.price || 0);
-  const discountedPrice = getEffectivePrice(basePrice, effectiveDiscount, isLoggedIn);
+  const priceUsd = Number(product?.price || 0);
+  const priceArs = toArs(priceUsd, exchangeRate);
+  const basePriceArs = Number.isFinite(priceArs) ? priceArs : priceUsd;
+  const discountedPriceArs = getEffectivePrice(basePriceArs, effectiveDiscount, isLoggedIn);
+  const discountedPriceUsd = getEffectivePrice(priceUsd, effectiveDiscount, isLoggedIn);
   const hasDiscount =
-    isLoggedIn && effectiveDiscount > 0 && discountedPrice !== basePrice && basePrice > 0;
+    isLoggedIn &&
+    effectiveDiscount > 0 &&
+    discountedPriceArs !== basePriceArs &&
+    basePriceArs > 0;
   return (
     <article className="group relative h-full overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_30px_60px_-35px_rgba(15,23,42,0.18)] transition duration-200 hover:-translate-y-1 hover:border-sky-500/60">
       <div className="aspect-square w-full overflow-hidden rounded-2xl bg-slate-100">
@@ -725,21 +823,37 @@ function ProductCard({ product, onAdd, discount = 0, isLoggedIn }) {
             {available ? "Disponible" : "Sin stock"}
           </span>
           {isLoggedIn ? (
-            <div className="text-right">
-              {hasDiscount ? (
-                <>
-                  <span className="block text-[10px] font-medium text-slate-400 line-through">
-                    {money(basePrice)}
-                  </span>
+            <div className="text-right space-y-1">
+              {Number.isFinite(priceArs) ? (
+                hasDiscount ? (
+                  <>
+                    <span className="block text-[10px] font-medium text-slate-400 line-through">
+                      {money(basePriceArs)}
+                    </span>
+                    <span className="text-sm font-semibold text-slate-900">
+                      {money(discountedPriceArs)}
+                    </span>
+                  </>
+                ) : (
                   <span className="text-sm font-semibold text-slate-900">
-                    {money(discountedPrice)}
+                    {money(discountedPriceArs)}
                   </span>
-                </>
+                )
               ) : (
                 <span className="text-sm font-semibold text-slate-900">
-                  {money(discountedPrice)}
+                  {formatUsd(discountedPriceUsd)}
                 </span>
               )}
+              <div className="text-[11px] font-medium text-slate-600">
+                {hasDiscount ? (
+                  <>
+                    <span className="mr-2 line-through text-slate-400">{formatUsd(priceUsd)}</span>
+                    <span>{formatUsd(discountedPriceUsd)} USD</span>
+                  </>
+                ) : (
+                  <span>{formatUsd(discountedPriceUsd)} USD</span>
+                )}
+              </div>
             </div>
           ) : (
             <span className="text-[11px] font-medium text-slate-500">
@@ -777,6 +891,7 @@ function CartDrawer({
   discount = 0,
   onCheckout,
   products = [],
+  exchangeRate,
 }) {
   const effectiveDiscount = Number.isFinite(Number(discount)) ? Number(discount) : 0;
   const getAvailable = (id) => {
@@ -819,8 +934,11 @@ function CartDrawer({
                 const availableStock = getAvailable(it.id);
                 const disableDecrease = it.qty <= 1;
                 const disableIncrease = availableStock > 0 ? it.qty >= availableStock : true;
-                const basePrice = Number(it.price || 0);
+                const priceUsd = Number(it.priceUsd || 0);
+                const priceArs = toArs(priceUsd, exchangeRate);
+                const basePrice = Number.isFinite(priceArs) ? priceArs : priceUsd;
                 const unitPrice = getEffectivePrice(basePrice, effectiveDiscount, isLoggedIn);
+                const unitPriceUsd = getEffectivePrice(priceUsd, effectiveDiscount, isLoggedIn);
                 const lineTotal = unitPrice * it.qty;
                 const showDiscount =
                   isLoggedIn && effectiveDiscount > 0 && unitPrice !== basePrice && basePrice > 0;
@@ -836,7 +954,7 @@ function CartDrawer({
                     <div className="flex-1 text-sm text-slate-600">
                       <div className="font-medium text-slate-900">{it.name}</div>
                       {isLoggedIn ? (
-                        <div className="text-xs text-slate-500">
+                        <div className="text-xs text-slate-500 space-y-1">
                           {showDiscount ? (
                             <>
                               <span className="mr-2 line-through text-[11px] text-slate-400">
@@ -847,6 +965,18 @@ function CartDrawer({
                           ) : (
                             <span>{money(unitPrice)} c/u</span>
                           )}
+                          <div className="text-[11px] text-slate-500">
+                            {showDiscount ? (
+                              <>
+                                <span className="mr-2 line-through text-slate-400">
+                                  {formatUsd(priceUsd)}
+                                </span>
+                                <span>{formatUsd(unitPriceUsd)} USD c/u</span>
+                              </>
+                            ) : (
+                              <span>{formatUsd(unitPriceUsd)} USD c/u</span>
+                            )}
+                          </div>
                         </div>
                       ) : (
                         <div className="text-xs text-slate-500">Precio visible al iniciar sesión</div>

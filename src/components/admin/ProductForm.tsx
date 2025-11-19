@@ -32,8 +32,10 @@ type ProductFormProps = {
 export default function ProductForm({ open, onClose, initial, onSaved }: ProductFormProps) {
   const [name, setName] = useState(initial?.name || "");
   const [sku, setSku] = useState(initial?.sku ? String(initial.sku) : "");
-  const [price, setPrice] = useState<number | string>(initial?.price ?? 0);
-  const [priceUsd, setPriceUsd] = useState<string>("");
+  const [priceUsd, setPriceUsd] = useState<string>(
+    initial?.price != null ? String(initial.price) : ""
+  );
+  const [priceArs, setPriceArs] = useState<string>("");
   const [stock, setStock] = useState<number | string>(initial?.stock ?? 0);
   const [description, setDescription] = useState<string>(initial?.description || "");
   const [active, setActive] = useState<boolean>(initial?.active ?? true);
@@ -57,8 +59,8 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
   useEffect(() => {
     setName(initial?.name || "");
     setSku(initial?.sku ? String(initial.sku) : "");
-    setPrice(initial?.price ?? 0);
-    setPriceUsd("");
+    setPriceUsd(initial?.price != null ? String(initial.price) : "");
+    setPriceArs("");
     setStock(initial?.stock ?? 0);
     setDescription(initial?.description || "");
     setActive(initial?.active ?? true);
@@ -103,23 +105,20 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
 
   useEffect(() => {
     if (!open) return;
-    if (!exchangeRate || !Number.isFinite(exchangeRate) || exchangeRate <= 0) {
-      if (initial?.id) {
-        setPriceUsd("");
-      }
+    const rate = Number(exchangeRate);
+    if (!rate || !Number.isFinite(rate) || rate <= 0) {
       return;
     }
 
-    if (initial?.price != null) {
-      const priceNumber = Number(initial.price);
-      if (Number.isFinite(priceNumber)) {
-        const usdValue = priceNumber / exchangeRate;
-        setPriceUsd(usdValue.toFixed(2));
-      } else {
-        setPriceUsd("");
-      }
+    const usdNumber = Number(priceUsd);
+    if (!Number.isFinite(usdNumber)) {
+      setPriceArs("");
+      return;
     }
-  }, [open, initial?.id, initial?.price, exchangeRate]);
+
+    const arsValue = usdNumber * rate;
+    setPriceArs(Number.isFinite(arsValue) ? arsValue.toFixed(2) : "");
+  }, [open, priceUsd, exchangeRate]);
 
   useEffect(() => {
     const unsubscribe = subscribeProductTypes(
@@ -162,7 +161,7 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
     }
 
     // Normalizar números (valueAsNumber sería otra opción)
-    const priceNum = Number(price ?? 0);
+    const priceNum = Number(priceUsd ?? 0);
     const stockNum = Number(stock ?? 0);
     const normalizedTypeTitle = (productTypeTitle || "").trim() || "general";
     const normalizedDescription = (description || "").trim();
@@ -292,18 +291,25 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
                 onChange={(e) => {
                   const raw = e.target.value;
                   setPriceUsd(raw);
-                  if (!exchangeRate || exchangeRate <= 0) return;
+                  const rate = Number(exchangeRate);
+                  if (!rate || rate <= 0) {
+                    setPriceArs("");
+                    return;
+                  }
                   if (raw === "") {
-                    setPrice("");
+                    setPriceArs("");
                     return;
                   }
                   const usdValue = Number(raw);
-                  if (!Number.isFinite(usdValue)) return;
-                  const arsValue = usdValue * exchangeRate;
+                  if (!Number.isFinite(usdValue)) {
+                    setPriceArs("");
+                    return;
+                  }
+                  const arsValue = usdValue * rate;
                   if (!Number.isFinite(arsValue)) return;
-                  setPrice((arsValue || 0).toFixed(2));
+                  setPriceArs((arsValue || 0).toFixed(2));
                 }}
-                disabled={loading || exchangeRateLoading || !exchangeRate}
+                disabled={loading || exchangeRateLoading}
               />
               <p className="mt-1 text-xs text-slate-500">
                 {exchangeRateLoading && "Obteniendo tipo de cambio oficial..."}
@@ -330,10 +336,23 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
                 min={0}
                 step="0.01"
                 className="w-full rounded-xl border px-3 py-2 text-sm"
-                value={price}
-                onChange={e => setPrice(e.target.value)}
+                value={priceArs}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  setPriceArs(raw);
+                  const rate = Number(exchangeRate);
+                  if (!rate || rate <= 0 || raw === "") return;
+                  const arsValue = Number(raw);
+                  if (!Number.isFinite(arsValue)) return;
+                  const usdValue = arsValue / rate;
+                  if (!Number.isFinite(usdValue)) return;
+                  setPriceUsd(usdValue.toFixed(2));
+                }}
                 disabled={loading}
               />
+              <p className="mt-1 text-xs text-slate-500">
+                Este valor se calcula automáticamente usando el tipo de cambio para referencia. El precio que se guarda en la base de datos siempre está expresado en USD.
+              </p>
             </div>
 
             <div>

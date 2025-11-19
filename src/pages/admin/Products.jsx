@@ -17,7 +17,7 @@ const statusStyles = {
 };
 
 function money(n) {
-  return Number(n || 0).toLocaleString("es-AR", { style: "currency", currency: "ARS" });
+  return Number(n || 0).toLocaleString("en-US", { style: "currency", currency: "USD" });
 }
 
 const LEGACY_PREFIX = "legacy:";
@@ -258,7 +258,7 @@ export default function Products() {
             <tr>
               <th className="px-4 py-3 text-left">Producto</th>
               <th className="px-4 py-3 text-left">Categoría</th>
-              <th className="px-4 py-3 text-right">Precio</th>
+              <th className="px-4 py-3 text-right">Precio (USD)</th>
               <th className="px-4 py-3 text-right">Stock</th>
               <th className="px-4 py-3 text-left">Estado</th>
               <th className="px-4 py-3 text-right">Acciones</th>
