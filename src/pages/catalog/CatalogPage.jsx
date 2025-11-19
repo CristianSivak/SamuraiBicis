@@ -705,6 +705,14 @@ function ProductCard({ product, onAdd, discount = 0, isLoggedIn }) {
           <p className="text-xs uppercase tracking-wide text-slate-500">{product.brand}</p>
         ) : null}
         <h3 className="text-sm font-semibold text-slate-900">{product.name}</h3>
+        {product.description ? (
+          <p
+            className="text-xs leading-relaxed text-slate-600"
+            style={{ display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+          >
+            {product.description}
+          </p>
+        ) : null}
         <div className="flex items-center justify-between text-xs text-slate-500">
           <span
             className={`inline-flex items-center gap-1 rounded-full px-3 py-1 font-medium ${
