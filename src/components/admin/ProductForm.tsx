@@ -35,6 +35,7 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
   const [price, setPrice] = useState<number | string>(initial?.price ?? 0);
   const [priceUsd, setPriceUsd] = useState<string>("");
   const [stock, setStock] = useState<number | string>(initial?.stock ?? 0);
+  const [description, setDescription] = useState<string>(initial?.description || "");
   const [active, setActive] = useState<boolean>(initial?.active ?? true);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string>(initial?.imageUrl || "");
@@ -59,6 +60,7 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
     setPrice(initial?.price ?? 0);
     setPriceUsd("");
     setStock(initial?.stock ?? 0);
+    setDescription(initial?.description || "");
     setActive(initial?.active ?? true);
     setImageFile(null);
     setPreview(initial?.imageUrl || "");
@@ -163,6 +165,7 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
     const priceNum = Number(price ?? 0);
     const stockNum = Number(stock ?? 0);
     const normalizedTypeTitle = (productTypeTitle || "").trim() || "general";
+    const normalizedDescription = (description || "").trim();
     const normalizedSku = (sku || "").trim();
 
     setLoading(true);
@@ -178,6 +181,7 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
           productTypeId,
           productTypeTitle: normalizedTypeTitle,
           active,
+          description: normalizedDescription,
           imageFile,
         });
         saved = {
@@ -189,6 +193,7 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
           category: normalizedTypeTitle,
           productTypeId: productTypeId ?? null,
           productTypeTitle: normalizedTypeTitle,
+          description: normalizedDescription,
           active,
           imageUrl: imageFile ? preview : (initial?.imageUrl ?? ""),
         } as Product;
@@ -198,6 +203,7 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
           sku: normalizedSku || null,
           price: priceNum,
           stock: stockNum,
+          description: normalizedDescription,
           category: normalizedTypeTitle,
           productTypeId,
           productTypeTitle: normalizedTypeTitle,
@@ -244,6 +250,21 @@ export default function ProductForm({ open, onClose, initial, onSaved }: Product
                 required
                 disabled={loading}
               />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-sm mb-1">Descripción</label>
+              <textarea
+                className="w-full rounded-xl border px-3 py-2 text-sm"
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                rows={3}
+                placeholder="Detalles del producto, materiales, compatibilidades, etc."
+                disabled={loading}
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Este texto se mostrará en el catálogo para ayudar a tus clientes a elegir.
+              </p>
             </div>
 
             <div>

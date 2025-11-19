@@ -15,6 +15,7 @@ export type Product = {
   skuNumber?: number | null;
   price: number;
   stock: number;
+  description?: string;
   category: string;
   productTypeId?: string | null;
   productTypeTitle?: string | null;
@@ -57,6 +58,7 @@ export async function createProduct({
   sku,
   price,
   stock,
+  description,
   category,
   productTypeId,
   productTypeTitle,
@@ -67,6 +69,7 @@ export async function createProduct({
   sku?: string | number | null;
   price?: number | string;
   stock?: number | string;
+  description?: string | null;
   category?: string;
   productTypeId?: string | null;
   productTypeTitle?: string | null;
@@ -87,6 +90,7 @@ export async function createProduct({
     skuNumber: skuNumber,
     price: Number(price ?? 0),
     stock: Number(stock ?? 0),
+    description: description || "",
     category: category || effectiveTypeTitle || "general",
     productTypeId: productTypeId || null,
     productTypeTitle: effectiveTypeTitle || "general",
@@ -109,6 +113,7 @@ export async function updateProduct(id: string, {
   sku,
   price,
   stock,
+  description,
   category,
   productTypeId,
   productTypeTitle,
@@ -119,6 +124,7 @@ export async function updateProduct(id: string, {
   sku?: string | number | null;
   price?: number | string;
   stock?: number | string;
+  description?: string | null;
   category?: string;
   productTypeId?: string | null;
   productTypeTitle?: string | null;
@@ -137,6 +143,7 @@ export async function updateProduct(id: string, {
   }
   if (price !== undefined) patch.price = Number(price);
   if (stock !== undefined) patch.stock = Number(stock);
+  if (description !== undefined) patch.description = description || "";
   if (category !== undefined) patch.category = category || "general";
   if (productTypeId !== undefined) patch.productTypeId = productTypeId || null;
   if (productTypeTitle !== undefined) {
