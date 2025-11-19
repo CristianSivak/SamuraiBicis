@@ -127,7 +127,7 @@ export default function HeroSection({
             <div className="relative isolate overflow-hidden rounded-[2.8rem] border border-slate-200 bg-white p-8 shadow-[0_30px_80px_rgba(15,23,42,0.2)] backdrop-blur-sm">
               <div className="mb-8 overflow-hidden rounded-3xl">
                 <img
-                  src="/img/bicis.jpg"
+                  src="/img/bicis.jpeg"
                   alt="Bicicletas exhibidas en la sala de ventas de Samurai Bicis"
                   className="h-56 w-full object-cover sm:h-64"
                 />
