@@ -125,6 +125,13 @@ export default function HeroSection({
           <div className="relative">
             <div className="absolute inset-0 -translate-y-6 scale-[1.08] rounded-[3.25rem] bg-gradient-to-br from-slate-100 via-white to-transparent opacity-80 blur-3xl" aria-hidden="true" />
             <div className="relative isolate overflow-hidden rounded-[2.8rem] border border-slate-200 bg-white p-8 shadow-[0_30px_80px_rgba(15,23,42,0.2)] backdrop-blur-sm">
+              <div className="mb-8 overflow-hidden rounded-3xl">
+                <img
+                  src="/img/bicis.jpg"
+                  alt="Bicicletas exhibidas en la sala de ventas de Samurai Bicis"
+                  className="h-56 w-full object-cover sm:h-64"
+                />
+              </div>
               <div className="absolute right-6 top-6 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
                 Equipo comercial activo
@@ -150,7 +157,7 @@ export default function HeroSection({
                       <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                         {item.label}
                       </p>
-                      <p className="mt-2 text-base font-semibold text-slate-900">
+                      <p className="mt-2 break-words text-base font-semibold text-slate-900">
                         {item.title}
                       </p>
                       <p className="mt-1 text-sm text-slate-600">
