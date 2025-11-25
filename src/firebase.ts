@@ -84,7 +84,7 @@ onIdTokenChanged(auth, async (u) => {
 });
 
 // URL post-acción (reset password, etc.)
-const prodSiteUrl = "https://www.samurai.ar";
+const prodSiteUrl = "https://samurai.ar";
 
 export const actionCodeSettings = {
   url: import.meta.env.PROD

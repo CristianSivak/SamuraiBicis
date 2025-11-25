@@ -11,7 +11,8 @@ setGlobalOptions({ region: "us-central1" });
  * Config de CORS: ajustá los orígenes permitidos.
  * IMPORTANTE: si usás credentials/cookies en el fetch, NO usar '*'
  */
-const SITE_URL = "https://www.samurai.ar";
+// Prefer the apex domain for allowlisting in Firebase Auth action links
+const SITE_URL = "https://samurai.ar";
 
 const ALLOWED_ORIGINS = new Set([
   "http://localhost:5173",
@@ -19,6 +20,8 @@ const ALLOWED_ORIGINS = new Set([
   "https://bikeshop-ab2f0.firebaseapp.com",
   `${SITE_URL.replace("https://", "http://")}`,
   SITE_URL,
+  "http://www.samurai.ar",
+  "https://www.samurai.ar",
 ]);
 
 function setCorsHeaders(req, res) {
