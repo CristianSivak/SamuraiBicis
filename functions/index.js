@@ -11,12 +11,14 @@ setGlobalOptions({ region: "us-central1" });
  * Config de CORS: ajustá los orígenes permitidos.
  * IMPORTANTE: si usás credentials/cookies en el fetch, NO usar '*'
  */
+const SITE_URL = "https://www.samurai.ar";
+
 const ALLOWED_ORIGINS = new Set([
   "http://localhost:5173",
   "https://bikeshop-ab2f0.web.app",
   "https://bikeshop-ab2f0.firebaseapp.com",
-  "http://www.samurai.ar",
-  "https://www.samurai.ar",
+  `${SITE_URL.replace("https://", "http://")}`,
+  SITE_URL,
 ]);
 
 function setCorsHeaders(req, res) {
@@ -88,7 +90,7 @@ exports.approveAndInviteUser = onRequest(
 
       // Link de contraseña
       const link = await admin.auth().generatePasswordResetLink(email, {
-        url: "https://bikeshop-ab2f0.web.app/login",
+        url: `${SITE_URL}/login`,
         handleCodeInApp: false,
       });
 

@@ -84,9 +84,11 @@ onIdTokenChanged(auth, async (u) => {
 });
 
 // URL post-acción (reset password, etc.)
+const prodSiteUrl = "https://www.samurai.ar";
+
 export const actionCodeSettings = {
   url: import.meta.env.PROD
-    ? "https://bikeshop-ab2f0.web.app/login"
+    ? `${prodSiteUrl}/login`
     : "http://localhost:5173/login",
   handleCodeInApp: false,
 };
