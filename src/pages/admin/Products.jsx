@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { subscribeToSyncStatus, triggerSync } from "../../services/contabilium";
 import ProductForm from "../../components/admin/ProductForm";
 import BulkProductImport from "../../components/admin/BulkProductImport";
 import {
@@ -50,6 +51,28 @@ export default function Products() {
   const [exporting, setExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState("");
   const [editing, setEditing] = useState(null);
+  const [syncStatus, setSyncStatus]   = useState(null);
+  const [syncing, setSyncing]         = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
+
+  useEffect(() => {
+    const unsub = subscribeToSyncStatus(setSyncStatus);
+    return () => unsub();
+  }, []);
+
+  async function handleSync() {
+    if (syncing) return;
+    setSyncing(true);
+    setSyncMessage("");
+    try {
+      const result = await triggerSync();
+      setSyncMessage(`Sync completada: ${result.updated} productos actualizados de ${result.total}.`);
+    } catch (err) {
+      setSyncMessage(`Error: ${err.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -198,6 +221,32 @@ export default function Products() {
           </div>
         </div>
       </section>
+
+      <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-6 py-4 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              Sincronización con Contabilium
+            </div>
+            <div className="mt-1 text-xs text-emerald-700">
+              {syncStatus
+                ? `Última sync: ${syncStatus.lastSync ? syncStatus.lastSync.toLocaleString("es-AR") : "—"} · ${syncStatus.updated} actualizados de ${syncStatus.total}${syncStatus.errors?.length ? ` · ${syncStatus.errors.length} error(es)` : ""}`
+                : "Sin datos de sincronización aún"}
+            </div>
+            {syncMessage && (
+              <div className="mt-1 text-xs text-emerald-600">{syncMessage}</div>
+            )}
+          </div>
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {syncing ? "Sincronizando…" : "Sincronizar ahora"}
+          </button>
+        </div>
+      </div>
 
       {exportMessage && (
         <div className="rounded-3xl border border-sky-200 bg-sky-50 px-6 py-4 text-sm text-sky-700">

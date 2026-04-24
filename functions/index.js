@@ -1,17 +1,16 @@
 // functions/index.js
-const { onRequest } = require("firebase-functions/v2/https");
+const { onRequest }  = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { defineSecret } = require("firebase-functions/params");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const admin = require("firebase-admin");
+const { getAllConceptos } = require("./contabiliumService");
+
 admin.initializeApp();
 
 // región global (coincide con tu URL us-central1)
 setGlobalOptions({ region: "us-central1" });
 
-/**
- * Config de CORS: ajustá los orígenes permitidos.
- * IMPORTANTE: si usás credentials/cookies en el fetch, NO usar '*'
- */
-// Prefer the apex domain for allowlisting in Firebase Auth action links
 const SITE_URL = "https://samurai.ar";
 
 const ALLOWED_ORIGINS = new Set([
@@ -25,28 +24,127 @@ const ALLOWED_ORIGINS = new Set([
 ]);
 
 function setCorsHeaders(req, res) {
-  const origin = req.get("Origin"); // ojo mayúscula
+  const origin = req.get("Origin");
   if (origin && ALLOWED_ORIGINS.has(origin)) {
     res.set("Access-Control-Allow-Origin", origin);
     res.set("Access-Control-Allow-Credentials", "true");
-    res.set("Vary", "Origin"); // para caches intermedios/CDN
+    res.set("Vary", "Origin");
   }
-  // Métodos y headers aceptados (incluí Authorization si lo usás)
   res.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
 }
 
+// Secretos del Secret Manager de Firebase
+// Configurarlos con:
+//   firebase functions:secrets:set CONTABILIUM_EMAIL
+//   firebase functions:secrets:set CONTABILIUM_API_KEY
+const CONTABILIUM_EMAIL   = defineSecret("CONTABILIUM_EMAIL");
+const CONTABILIUM_API_KEY = defineSecret("CONTABILIUM_API_KEY");
+
+// ─────────────────────────────────────────────────────────────
+// Lógica compartida de sincronización Contabilium → Firestore
+// ─────────────────────────────────────────────────────────────
+async function doContabiliumSync(email, apiKey) {
+  const db = admin.firestore();
+
+  const conceptos = await getAllConceptos(email, apiKey);
+
+  const stockMap = {};
+  for (const c of conceptos) {
+    const code = (c.Codigo || "").trim();
+    if (code) stockMap[code] = Math.round(c.Stock || 0);
+  }
+
+  const snapshot = await db.collection("products").get();
+
+  const updates = [];
+  for (const docSnap of snapshot.docs) {
+    const { sku, stock } = docSnap.data();
+    const skuStr = (sku || "").toString().trim();
+    if (!skuStr || !(skuStr in stockMap)) continue;
+    const newStock = stockMap[skuStr];
+    if (newStock !== stock) updates.push({ ref: docSnap.ref, stock: newStock });
+  }
+
+  for (let i = 0; i < updates.length; i += 499) {
+    const batch = db.batch();
+    for (const u of updates.slice(i, i + 499)) {
+      batch.update(u.ref, {
+        stock:     u.stock,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
+
+  await db.doc("meta/contabiliumSync").set({
+    lastSync: admin.firestore.FieldValue.serverTimestamp(),
+    updated:  updates.length,
+    total:    conceptos.length,
+    errors:   [],
+  });
+
+  return { updated: updates.length, total: conceptos.length };
+}
+
+// ─────────────────────────────────────────────────────────────
+// Sync automático cada 5 minutos
+// ─────────────────────────────────────────────────────────────
+exports.syncContabiliumStock = onSchedule(
+  {
+    schedule: "every 5 minutes",
+    secrets:  [CONTABILIUM_EMAIL, CONTABILIUM_API_KEY],
+  },
+  async () => {
+    try {
+      const result = await doContabiliumSync(
+        CONTABILIUM_EMAIL.value(),
+        CONTABILIUM_API_KEY.value()
+      );
+      console.log("[contabilium] sync ok:", result);
+    } catch (err) {
+      console.error("[contabilium] sync error:", err);
+      await admin.firestore().doc("meta/contabiliumSync").set(
+        { errors: [String(err)], lastSync: admin.firestore.FieldValue.serverTimestamp() },
+        { merge: true }
+      );
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────
+// Sync manual desde el panel de admin
+// ─────────────────────────────────────────────────────────────
+exports.triggerContabiliumSync = onRequest(
+  { cors: false, secrets: [CONTABILIUM_EMAIL, CONTABILIUM_API_KEY] },
+  async (req, res) => {
+    setCorsHeaders(req, res);
+    if (req.method === "OPTIONS") return res.status(204).send("");
+    if (req.method !== "POST")    return res.status(405).json({ error: "Method Not Allowed" });
+
+    try {
+      const result = await doContabiliumSync(
+        CONTABILIUM_EMAIL.value(),
+        CONTABILIUM_API_KEY.value()
+      );
+      return res.json(result);
+    } catch (err) {
+      console.error("[contabilium] trigger error:", err);
+      setCorsHeaders(req, res);
+      return res.status(500).json({ error: String(err) });
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────
 exports.approveAndInviteUser = onRequest(
-  // NOTA: desactivamos el cors automático y lo controlamos manualmente
   { cors: false },
   async (req, res) => {
     try {
-      // CORS: siempre setear cabeceras
       setCorsHeaders(req, res);
 
-      // Preflight
       if (req.method === "OPTIONS") {
-        return res.status(204).send(""); // No Content
+        return res.status(204).send("");
       }
 
       if (req.method !== "POST") {
@@ -68,7 +166,6 @@ exports.approveAndInviteUser = onRequest(
       const email = String(u.email || u.emailLower || "").toLowerCase();
       const name = u.name || "";
 
-      // Crear/buscar en Auth
       let authUser;
       try {
         authUser = await admin.auth().getUserByEmail(email);
@@ -77,7 +174,6 @@ exports.approveAndInviteUser = onRequest(
       }
       const uid = authUser.uid;
 
-      // Doc final
       const finalRef = admin.firestore().doc(`users/${uid}`);
       await finalRef.set(
         {
@@ -91,7 +187,6 @@ exports.approveAndInviteUser = onRequest(
 
       if (userDocId !== uid) await tempRef.delete();
 
-      // Link de contraseña
       const link = await admin.auth().generatePasswordResetLink(email, {
         url: `${SITE_URL}/login`,
         handleCodeInApp: false,
@@ -100,7 +195,6 @@ exports.approveAndInviteUser = onRequest(
       return res.json({ uid, link });
     } catch (err) {
       console.error(err);
-      // CORS también en errores
       setCorsHeaders(req, res);
       return res.status(500).json({ error: String(err) });
     }
