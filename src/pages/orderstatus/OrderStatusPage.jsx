@@ -542,7 +542,7 @@ export default function OrderStatusPage() {
           </div>
         </section>
 
-        <section className="relative z-10 -mt-12 rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_45px_90px_-65px_rgba(15,23,42,0.45)]">
+        <section className="relative mt-8 rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_45px_90px_-65px_rgba(15,23,42,0.45)]">
           {authLoading ? (
             <div className="flex min-h-[240px] items-center justify-center">
               <LoadingSpinner label="Preparando tu espacio de pedidos…" />

@@ -30,7 +30,7 @@ function sum(items: OrderItem[]) {
   return items.reduce((acc, it) => acc + Number(it.price || 0) * Number(it.qty || 0), 0);
 }
 
-export type OrderStatus = "solicitud" | "pendiente" | "pagada" | "cancelada";
+export type OrderStatus = "solicitud" | "pendiente" | "facturado" | "pagada" | "cancelada";
 
 export type OrderRecord = {
   id: string;
@@ -40,7 +40,10 @@ export type OrderRecord = {
   items?: OrderItem[];
   createdAt?: Date | null;
   updatedAt?: Date | null;
+  facturadoAt?: Date | null;
   paidAt?: Date | null;
+  contabiliumComprobanteId?: number | null;
+  contabiliumComprobanteNumero?: string | null;
 };
 
 function toDate(value: unknown): Date | null {
@@ -48,7 +51,7 @@ function toDate(value: unknown): Date | null {
   return null;
 }
 
-const allowedStatuses: OrderStatus[] = ["solicitud", "pendiente", "pagada", "cancelada"];
+const allowedStatuses: OrderStatus[] = ["solicitud", "pendiente", "facturado", "pagada", "cancelada"];
 
 function normalizeStatus(value: unknown): OrderStatus {
   const raw = String(value || "");
@@ -78,7 +81,10 @@ function toOrderRecord(id: string, snap: DocumentSnapshot<DocumentData>): OrderR
     items: normalizeItems(data?.items),
     createdAt: toDate(data?.createdAt),
     updatedAt: toDate(data?.updatedAt),
+    facturadoAt: toDate(data?.facturadoAt),
     paidAt: toDate(data?.paidAt),
+    contabiliumComprobanteId: data?.contabiliumComprobanteId ?? null,
+    contabiliumComprobanteNumero: data?.contabiliumComprobanteNumero ?? null,
   };
 }
 
@@ -192,10 +198,24 @@ export async function listOrders(params: ListOrdersParams = {}) {
   return { items, nextCursor };
 }
 
-export async function updateOrderStatus(orderId: string, newStatus: "pendiente" | "pagada" | "cancelada") {
+export async function updateOrderStatus(
+  orderId: string,
+  newStatus: "pendiente" | "facturado" | "pagada" | "cancelada"
+) {
   const patch: any = { status: newStatus, updatedAt: serverTimestamp() };
+  if (newStatus === "facturado") patch.facturadoAt = serverTimestamp();
   if (newStatus === "pagada") patch.paidAt = serverTimestamp();
   await updateDoc(doc(db, "orders", orderId), patch);
+}
+
+// Vincula manualmente una orden con el número de comprobante de Contabilium.
+// La sincronización (M6) resuelve el saldo y actualiza el estado en la próxima corrida.
+export async function linkOrderComprobante(orderId: string, numero: string) {
+  const value = String(numero || "").trim();
+  await updateDoc(doc(db, "orders", orderId), {
+    contabiliumComprobanteNumero: value || null,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function getOrderStatus(orderId: string, opts: { email?: string } = {}): Promise<OrderRecord> {

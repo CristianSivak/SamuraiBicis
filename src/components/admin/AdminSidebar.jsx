@@ -7,6 +7,7 @@ const items = [
   { to: "/admin/orders", label: "Órdenes", icon: ReceiptIcon },
   { to: "/admin/product-types", label: "Tipos de producto", icon: LayersIcon },
   { to: "/admin/customer-types", label: "Tipos de cliente", icon: TagIcon },
+  { to: "/admin/settings", label: "Configuración", icon: SettingsIcon },
 ];
 
 export default function AdminSidebar({ collapsed, onToggle }) {
@@ -119,6 +120,15 @@ function TagIcon(props) {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
       <path d="M20.59 13.41 11 3H4v7l9.59 9.59a2 2 0 0 0 2.82 0l4.18-4.18a2 2 0 0 0 0-2.82Z" />
       <path d="M7 7h.01" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SettingsIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
   );
 }

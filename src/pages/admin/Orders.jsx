@@ -1,15 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
 import { FirebaseError } from "firebase/app";
-import { listOrders, updateOrderStatus } from "../../services/orders";
+import { listOrders, updateOrderStatus, linkOrderComprobante } from "../../services/orders";
+import { triggerOrderStatusSync, subscribeToOrderSyncStatus } from "../../services/contabilium";
 import { useAuth } from "../../auth/AuthContext";
 import { BusyButtonContent, LoadingOverlay } from "../../components/ui/LoadingIndicators";
 
 const statusStyles = {
   pagada: "border border-emerald-200 bg-emerald-50 text-emerald-700",
+  facturado: "border border-indigo-200 bg-indigo-50 text-indigo-700",
   pendiente: "border border-amber-200 bg-amber-50 text-amber-700",
   cancelada: "border border-rose-200 bg-rose-50 text-rose-700",
   solicitud: "border border-sky-200 bg-sky-50 text-sky-700",
 };
+
+function syncTimeAgo(date) {
+  if (!date) return "nunca";
+  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (diff < 60) return "hace instantes";
+  if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`;
+  if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`;
+  return date.toLocaleString("es-AR");
+}
 
 function money(n) {
   return Number(n || 0).toLocaleString("es-AR", { style: "currency", currency: "ARS" });
@@ -24,7 +35,16 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
   const [cursor, setCursor] = useState(null);
   const [actionError, setActionError] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
+  const [syncStatus, setSyncStatus] = useState(null);
+  const [linkingId, setLinkingId] = useState(null);
+  const [linkValue, setLinkValue] = useState("");
   const { loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    return subscribeToOrderSyncStatus(setSyncStatus);
+  }, []);
 
   async function fetchOrders(reset = true) {
     setLoading(true);
@@ -108,6 +128,43 @@ export default function Orders() {
     }
   }
 
+  async function handleSync() {
+    setSyncing(true);
+    setSyncMsg("");
+    setActionError("");
+    try {
+      const res = await triggerOrderStatusSync();
+      setSyncMsg(`Sincronización completa: ${res.updated} actualizada(s) de ${res.checked} revisada(s).`);
+      await fetchOrders(true);
+    } catch (e) {
+      console.error(e);
+      setActionError("No se pudo sincronizar con Contabilium.");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  function startLink(o) {
+    setLinkingId(o.id);
+    setLinkValue(o.contabiliumComprobanteNumero || "");
+    setActionError("");
+  }
+
+  async function saveLink(id) {
+    setActionError("");
+    try {
+      await linkOrderComprobante(id, linkValue);
+      setRows((prev) =>
+        prev.map((o) => (o.id === id ? { ...o, contabiliumComprobanteNumero: linkValue.trim() || null } : o))
+      );
+      setLinkingId(null);
+      setLinkValue("");
+    } catch (e) {
+      console.error(e);
+      setActionError("No se pudo vincular el comprobante.");
+    }
+  }
+
   return (
     <div className="space-y-8">
       <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_45px_85px_-60px_rgba(15,23,42,0.35)]">
@@ -145,6 +202,7 @@ export default function Orders() {
           >
             <option value="all">Todos los estados</option>
             <option value="pagada">Pagada</option>
+            <option value="facturado">Facturado</option>
             <option value="pendiente">Pendiente</option>
             <option value="cancelada">Cancelada</option>
             <option value="solicitud">Solicitud</option>
@@ -162,16 +220,39 @@ export default function Orders() {
             onChange={(e) => setTo(e.target.value)}
           />
         </div>
-        <div className="mt-4 text-right">
-          <button
-            onClick={() => fetchOrders(false)}
-            disabled={!cursor || loading}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:border-sky-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <BusyButtonContent busy={loading} busyLabel="Cargando…" label="Cargar más" />
-          </button>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="text-xs text-slate-500">
+            Sincronización de estados:{" "}
+            <span className="font-semibold text-slate-700">{syncTimeAgo(syncStatus?.lastSync)}</span>
+            {syncStatus?.errors?.length ? (
+              <span className="ml-2 text-rose-500">({syncStatus.errors.length} error/es)</span>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+              title="Coteja las órdenes pendientes/facturadas contra Contabilium"
+            >
+              <BusyButtonContent busy={syncing} busyLabel="Sincronizando…" label="Sincronizar con Contabilium" />
+            </button>
+            <button
+              onClick={() => fetchOrders(false)}
+              disabled={!cursor || loading}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:border-sky-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <BusyButtonContent busy={loading} busyLabel="Cargando…" label="Cargar más" />
+            </button>
+          </div>
         </div>
       </div>
+
+      {syncMsg && (
+        <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {syncMsg}
+        </div>
+      )}
 
       {actionError && (
         <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -197,6 +278,7 @@ export default function Orders() {
               <th className="px-4 py-3 text-left">Comentario</th>
               <th className="px-4 py-3 text-left">Fecha</th>
               <th className="px-4 py-3 text-left">Estado</th>
+              <th className="px-4 py-3 text-left">Comprobante</th>
               <th className="px-4 py-3 text-right">Total</th>
               <th className="px-4 py-3 text-right">Acciones</th>
             </tr>
@@ -221,6 +303,47 @@ export default function Orders() {
                     <span className="h-2 w-2 rounded-full bg-current/80" />
                     {o.status}
                   </span>
+                </td>
+                <td className="px-4 py-4">
+                  {linkingId === o.id ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        value={linkValue}
+                        onChange={(e) => setLinkValue(e.target.value)}
+                        placeholder="N° comprobante"
+                        className="w-32 rounded-xl border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-sky-400"
+                      />
+                      <button
+                        onClick={() => saveLink(o.id)}
+                        className="rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-700 hover:bg-emerald-100"
+                      >
+                        Guardar
+                      </button>
+                      <button
+                        onClick={() => { setLinkingId(null); setLinkValue(""); }}
+                        className="rounded-xl border border-slate-200 bg-white px-2 py-1 text-xs text-slate-500 hover:bg-slate-50"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : o.contabiliumComprobanteNumero ? (
+                    <button
+                      onClick={() => startLink(o)}
+                      className="font-mono text-xs text-indigo-700 underline-offset-2 hover:underline"
+                      title="Editar comprobante vinculado"
+                    >
+                      {o.contabiliumComprobanteNumero}
+                    </button>
+                  ) : (o.status === "pendiente" || o.status === "facturado") ? (
+                    <button
+                      onClick={() => startLink(o)}
+                      className="text-xs text-slate-400 transition hover:text-sky-600"
+                    >
+                      + Vincular
+                    </button>
+                  ) : (
+                    <span className="text-xs text-slate-300">—</span>
+                  )}
                 </td>
                 <td className="px-4 py-4 text-right font-semibold text-slate-900">{money(o.total || 0)}</td>
                 <td className="px-4 py-4">
@@ -258,7 +381,7 @@ export default function Orders() {
             ))}
             {filtered.length === 0 && (
                 <tr>
-                  <td className="px-4 py-12 text-center text-slate-500" colSpan={9}>
+                  <td className="px-4 py-12 text-center text-slate-500" colSpan={10}>
                     {loading ? "Cargando órdenes…" : "Sin resultados."}
                   </td>
                 </tr>

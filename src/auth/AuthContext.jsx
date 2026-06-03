@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 // src/auth/AuthContext.jsx
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
@@ -11,6 +11,7 @@ const AuthContext = createContext({
   profile: null,
   loading: true,
   error: null,
+  logout: () => {},
 });
 
 export function AuthProvider({ children }) {
@@ -78,12 +79,16 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  const logout = () => signOut(auth);
+
   const value = useMemo(() => ({
     user: state.user,
     role: state.role,
     profile: state.profile,
     loading: state.loading,
     error: state.error,
+    logout,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [state]);
 
   return (

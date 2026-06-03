@@ -46,6 +46,11 @@ service cloud.firestore {
     // Users
     match /users/{id} { allow read, write: if true; }
 
+    // Notificaciones al admin (las crea la Cloud Function al confirmar un pedido)
+    match /notifications/{id} {
+      allow read, write: if true;
+    }
+
     // Todo lo demás cerrado
     match /{document=**} {
       allow read, write: if false;

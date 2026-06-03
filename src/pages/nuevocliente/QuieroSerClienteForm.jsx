@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import { createClientLead } from "../../services/accounts";
 import { BusyButtonContent } from "../../components/ui/LoadingIndicators";
+import { validateCuit, formatCuit } from "../../utils/cuit";
 
 export default function QuieroSerClienteForm({ onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [ok, setOk] = useState(false);
   const [error, setError] = useState("");
+  const [cuitError, setCuitError] = useState("");
   const [form, setForm] = useState({
     nombre: "",
     celular: "",
@@ -21,13 +23,35 @@ export default function QuieroSerClienteForm({ onSuccess }) {
 
   function onChange(e) {
     const { name, value, type, checked } = e.target;
+    if (name === "cuit") {
+      const formatted = formatCuit(value);
+      setForm((f) => ({ ...f, cuit: formatted }));
+      setCuitError("");
+      return;
+    }
     setForm((f) => ({ ...f, [name]: type === "checkbox" ? checked : value }));
+  }
+
+  function onCuitBlur() {
+    if (form.cuit && !validateCuit(form.cuit)) {
+      setCuitError("CUIT inválido. Ingresá los 11 dígitos correctamente.");
+    } else {
+      setCuitError("");
+    }
   }
 
   async function onSubmit(e) {
     e.preventDefault();
     setError("");
 
+    if (!form.cuit) {
+      setError("El CUIT es obligatorio.");
+      return;
+    }
+    if (!validateCuit(form.cuit)) {
+      setCuitError("CUIT inválido. Ingresá los 11 dígitos correctamente.");
+      return;
+    }
     if (!form.acepta) {
       setError("Debés aceptar la política de privacidad para continuar.");
       return;
@@ -51,9 +75,10 @@ export default function QuieroSerClienteForm({ onSuccess }) {
         mensaje: "",
         acepta: false,
       });
+      setCuitError("");
     } catch (err) {
       console.error(err);
-      setError("No pudimos enviar el formulario. Intentá de nuevo.");
+      setError(err?.message || "No pudimos enviar el formulario. Intentá de nuevo.");
     } finally {
       setLoading(false);
     }
@@ -64,7 +89,7 @@ export default function QuieroSerClienteForm({ onSuccess }) {
       <div className="relative overflow-hidden rounded-3xl border border-emerald-500/40 bg-emerald-500/10 p-8 text-emerald-100 shadow-[0_35px_60px_-30px_rgba(16,185,129,0.6)]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.18),_transparent_60%)]" />
         <div className="relative space-y-3">
-          <h3 className="text-2xl font-semibold text-white">¡Gracias! 🎉</h3>
+          <h3 className="text-2xl font-semibold text-white">¡Gracias!</h3>
           <p className="text-sm text-emerald-100/80">
             Recibimos tu solicitud. Nuestro equipo comercial te va a contactar a la brevedad.
           </p>
@@ -90,7 +115,7 @@ export default function QuieroSerClienteForm({ onSuccess }) {
           <div>
             <h2 className="text-2xl font-semibold text-slate-900">Quiero ser cliente</h2>
             <p className="mt-2 text-sm text-slate-500">
-              Completá el formulario y te contactamos con un plan personalizado. Todas las cargas muestran estado y loaders cuando corresponde.
+              Completá el formulario y te contactamos con un plan personalizado.
             </p>
           </div>
           <dl className="grid gap-3 text-xs text-slate-500 sm:grid-cols-3">
@@ -140,7 +165,27 @@ export default function QuieroSerClienteForm({ onSuccess }) {
 
           <div className="grid gap-6 sm:grid-cols-2">
             <Field label="Empresa" name="empresa" value={form.empresa} onChange={onChange} />
-            <Field label="CUIT" name="cuit" value={form.cuit} onChange={onChange} />
+            <div className="space-y-2 text-sm">
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                CUIT <span className="ml-1 text-rose-500">*</span>
+              </label>
+              <input
+                name="cuit"
+                value={form.cuit}
+                onChange={onChange}
+                onBlur={onCuitBlur}
+                required
+                placeholder="XX-XXXXXXXX-X"
+                inputMode="numeric"
+                className={`w-full rounded-xl border bg-white/80 px-4 py-2.5 text-sm text-slate-700 shadow-inner outline-none transition focus:ring-2 ${
+                  cuitError
+                    ? "border-rose-400 focus:border-rose-400 focus:ring-rose-400/40"
+                    : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/40"
+                }`}
+              />
+              {cuitError && <p className="text-xs text-rose-500">{cuitError}</p>}
+              <p className="text-xs text-slate-400">Ingresá el CUIT de la empresa o persona física.</p>
+            </div>
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2">
@@ -192,7 +237,7 @@ export default function QuieroSerClienteForm({ onSuccess }) {
             </p>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !!cuitError}
               className="inline-flex min-w-[180px] items-center justify-center rounded-xl bg-gradient-to-r from-slate-900 via-indigo-900 to-sky-900 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/40 transition focus:outline-none focus:ring-2 focus:ring-indigo-400/60 disabled:opacity-60"
             >
               <BusyButtonContent busy={loading} busyLabel="Enviando…" label="Enviar solicitud" />
@@ -204,16 +249,16 @@ export default function QuieroSerClienteForm({ onSuccess }) {
   );
 }
 
-function Field({ label, helper, children, as = "input", ...props }) {
+function Field({ label, helper, children, as = "input", required: isRequired, ...props }) {
   const Component = as;
   const inputClassName = "w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-700 shadow-inner outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40";
   return (
     <div className="space-y-2 text-sm">
       <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
         {label}
-        {props.required && <span className="ml-1 text-rose-500">*</span>}
+        {isRequired && <span className="ml-1 text-rose-500">*</span>}
       </label>
-      <Component className={inputClassName} {...props}>{children}</Component>
+      <Component className={inputClassName} required={isRequired} {...props}>{children}</Component>
       {helper && <p className="text-xs text-slate-400">{helper}</p>}
     </div>
   );
