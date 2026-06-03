@@ -9,6 +9,7 @@ const currencyFormatter = new Intl.NumberFormat("es-AR", { style: "currency", cu
 
 const statusClasses = {
   pagada: "border border-emerald-200 bg-emerald-50 text-emerald-700",
+  facturado: "border border-indigo-200 bg-indigo-50 text-indigo-700",
   pendiente: "border border-amber-200 bg-amber-50 text-amber-700",
   cancelada: "border border-rose-200 bg-rose-50 text-rose-700",
   solicitud: "border border-sky-200 bg-sky-50 text-sky-700",
@@ -16,6 +17,7 @@ const statusClasses = {
 
 const statusLabels = {
   pagada: "Pagada",
+  facturado: "Facturado",
   pendiente: "Pendiente",
   cancelada: "Cancelada",
   solicitud: "Solicitud",
