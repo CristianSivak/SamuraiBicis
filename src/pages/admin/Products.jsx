@@ -318,8 +318,8 @@ export default function Products() {
               <tr key={p.id}>
                 <td className="px-4 py-4">
                   <div className="flex items-center gap-3">
-                    {p.imageUrl ? (
-                      <img src={p.imageUrl} alt={p.name} className="h-12 w-12 rounded-xl object-cover" />
+                    {(p.images?.[0] ?? p.imageUrl) ? (
+                      <img src={p.images?.[0] ?? p.imageUrl} alt={p.name} className="h-12 w-12 rounded-xl object-cover" />
                     ) : (
                       <div className="h-12 w-12 rounded-xl border border-slate-200 bg-slate-50" />
                     )}

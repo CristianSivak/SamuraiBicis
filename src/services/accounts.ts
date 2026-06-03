@@ -5,6 +5,7 @@ import {
   updateDoc, deleteDoc
 } from "firebase/firestore";
 import { db } from "../firebase";
+import { validateCuit } from "../utils/cuit";
 
 export type Account = {
   id?: string;
@@ -16,12 +17,17 @@ export type Account = {
   cuit?: string;
   province?: string;
   city?: string;
-  vertical?: string; // rubro
+  vertical?: string;
   customerTypeId?: string | null;
+  // Integración Contabilium
+  contabiliumId?:   number | null;
+  idListaPrecio?:   number | null;
+  condicionIva?:    string | null;
+  contabiliumSync?: any;
   kind: "client" | "staff";
   role: "client" | "viewer" | "manager" | "admin";
   status: "pending" | "activo" | "suspendido" | "rejected";
-  approved?: boolean; // compat opcional
+  approved?: boolean;
   createdAt?: any;
   updatedAt?: any;
 };
@@ -33,6 +39,9 @@ export async function createClientLead(form: {
   nombre: string; email: string; celular?: string; empresa?: string; cuit?: string;
   provincia?: string; localidad?: string; rubro?: string; mensaje?: string; acepta: boolean;
 }) {
+  if (!form.cuit) throw new Error("El CUIT es obligatorio.");
+  if (!validateCuit(form.cuit)) throw new Error("El CUIT ingresado no es válido.");
+
   const ref = await addDoc(col, {
     name: form.nombre ?? "",
     email: form.email ?? "",
@@ -145,3 +154,21 @@ export { removeAccount as removeUser };
 
 // Por compatibilidad con tu nombre previo:
 export const createAccount = approveClient;
+
+const SYNC_CLIENT_URL = "https://us-central1-bikeshop-ab2f0.cloudfunctions.net/syncClientProfile";
+
+export async function syncClientContabiliumProfile(uid: string): Promise<{
+  contabiliumId: number;
+  idListaPrecio: number | null;
+}> {
+  const res = await fetch(SYNC_CLIENT_URL, {
+    method:  "POST",
+    headers: { "Content-Type": "application/json" },
+    body:    JSON.stringify({ uid }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Sync Contabilium error ${res.status}: ${text}`);
+  }
+  return res.json();
+}

@@ -1,11 +1,22 @@
 // src/pages/catalog/CatalogPage.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "../../auth/AuthContext";
+import { useLocation } from "react-router-dom";
 import { listProducts } from "../../services/products";
 import { createOrder } from "../../services/orders";
 import { getCustomerTypeById } from "../../services/customerTypes";
-import { fetchOfficialUsdArsRate } from "../../services/exchangeRates";
+import { fetchEffectiveRate } from "../../services/exchangeRates";
+import { getDollarConfig } from "../../services/dollarConfig";
+import { validateCuit, formatCuit } from "../../utils/cuit";
 import { LoadingOverlay, BusyButtonContent } from "../../components/ui/LoadingIndicators";
+
+const SITE_URL = "https://samurai.ar";
+
+function getProductImages(p) {
+  if (p.images?.length) return p.images;
+  return p.imageUrl ? [p.imageUrl] : [];
+}
 
 const money = (n) =>
   Number(n || 0).toLocaleString("es-AR", { style: "currency", currency: "ARS" });
@@ -48,6 +59,7 @@ const SORTS = [
 
 export default function CatalogPage() {
   const { user, profile } = useAuth();
+  const location = useLocation();
   const isLoggedIn = !!user;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [selectedCats, setSelectedCats] = useState([]);
@@ -68,6 +80,8 @@ export default function CatalogPage() {
   const [exchangeRateDate, setExchangeRateDate] = useState(null);
   const [exchangeRateLoading, setExchangeRateLoading] = useState(false);
   const [exchangeRateError, setExchangeRateError] = useState(null);
+  const [rateMode, setRateMode] = useState(null);
+  const [rateUsedFallback, setRateUsedFallback] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
   useEffect(() => {
@@ -105,21 +119,32 @@ export default function CatalogPage() {
     const controller = new AbortController();
     setExchangeRateLoading(true);
     setExchangeRateError(null);
-    fetchOfficialUsdArsRate(controller.signal)
-      .then(({ value, date }) => {
-        setExchangeRate(value);
-        setExchangeRateDate(date);
-      })
-      .catch((err) => {
+    setRateUsedFallback(false);
+
+    (async () => {
+      try {
+        const config = await getDollarConfig();
+        const result = await fetchEffectiveRate(config, controller.signal);
+        // En modo "disabled" igual usamos lastAutoValue para convertir precios USD→ARS internamente
+        const rateValue = result.value > 0
+          ? result.value
+          : (result.mode === "disabled" && config.lastAutoValue > 0 ? config.lastAutoValue : 0);
+        setExchangeRate(rateValue);
+        setExchangeRateDate(result.date);
+        setRateMode(result.mode);
+        setRateUsedFallback(result.usedFallback);
+      } catch (err) {
         if (err?.name === "AbortError") return;
-        console.error("Error obteniendo tipo de cambio oficial", err);
+        console.error("Error obteniendo tipo de cambio", err);
         setExchangeRate(null);
         setExchangeRateDate(null);
         setExchangeRateError(
-          "No pudimos actualizar el tipo de cambio. Mostramos los valores en USD hasta que vuelva a estar disponible."
+          "No pudimos actualizar el tipo de cambio. Los valores en USD se muestran sin conversión."
         );
-      })
-      .finally(() => setExchangeRateLoading(false));
+      } finally {
+        setExchangeRateLoading(false);
+      }
+    })();
 
     return () => controller.abort();
   }, []);
@@ -167,9 +192,10 @@ export default function CatalogPage() {
           changed = true;
           next.push({ ...item, qty: clampedQty, priceUsd: latestPriceUsd });
         } else {
-          const needsUpdate = item.priceUsd !== latestPriceUsd || item.imageUrl !== product.imageUrl;
+          const latestImageUrl = getProductImages(product)[0] || "";
+          const needsUpdate = item.priceUsd !== latestPriceUsd || item.imageUrl !== latestImageUrl;
           next.push(
-            needsUpdate ? { ...item, priceUsd: latestPriceUsd, imageUrl: product.imageUrl } : item
+            needsUpdate ? { ...item, priceUsd: latestPriceUsd, imageUrl: latestImageUrl } : item
           );
         }
       }
@@ -262,11 +288,12 @@ export default function CatalogPage() {
       return [
         ...prev,
         {
-          id: p.id,
-          name: p.name,
+          id:       p.id,
+          name:     p.name,
           priceUsd: Number(p.price || 0),
-          imageUrl: p.imageUrl || "",
-          qty: 1,
+          priceArs: p.priceArs != null ? Number(p.priceArs) : null,
+          imageUrl: getProductImages(p)[0] || "",
+          qty:      1,
         },
       ];
     });
@@ -288,19 +315,14 @@ export default function CatalogPage() {
 
   const cartTotal = useMemo(
     () =>
-      cart.reduce(
-        (acc, it) => {
-          const baseArs = toArs(it.priceUsd, exchangeRate);
-          const fallback = Number(it.priceUsd || 0);
-          const unitArs = getEffectivePrice(
-            Number.isFinite(baseArs) ? baseArs : fallback,
-            discount,
-            isLoggedIn
-          );
-          return acc + unitArs * it.qty;
-        },
-        0
-      ),
+      cart.reduce((acc, it) => {
+        const contabiliumArs = it.priceArs != null ? Number(it.priceArs) : null;
+        const convertedArs   = toArs(it.priceUsd, exchangeRate);
+        const base = Number.isFinite(contabiliumArs) && contabiliumArs > 0
+          ? contabiliumArs
+          : (Number.isFinite(convertedArs) ? convertedArs : Number(it.priceUsd || 0));
+        return acc + getEffectivePrice(base, discount, isLoggedIn) * it.qty;
+      }, 0),
     [cart, discount, isLoggedIn, exchangeRate]
   );
 
@@ -324,17 +346,16 @@ export default function CatalogPage() {
       return;
     }
 
-    const orderItems = cart.map(({ id, name, priceUsd, qty }) => {
-      const baseArs = toArs(priceUsd, exchangeRate);
-      const fallback = Number(priceUsd || 0);
+    const orderItems = cart.map(({ id, name, priceUsd, priceArs: itemPriceArs, qty }) => {
+      const contabiliumArs = itemPriceArs != null ? Number(itemPriceArs) : null;
+      const convertedArs   = toArs(priceUsd, exchangeRate);
+      const base = Number.isFinite(contabiliumArs) && contabiliumArs > 0
+        ? contabiliumArs
+        : (Number.isFinite(convertedArs) ? convertedArs : Number(priceUsd || 0));
       return {
         id,
         name,
-        price: getEffectivePrice(
-          Number.isFinite(baseArs) ? baseArs : fallback,
-          discount,
-          isLoggedIn
-        ),
+        price: getEffectivePrice(base, discount, isLoggedIn),
         qty,
       };
     });
@@ -365,6 +386,7 @@ export default function CatalogPage() {
         "Hola Samurai Bicis, este es el pedido que realicé:",
         "",
         `Nombre: ${customer.name}`,
+        customer.cuit ? `CUIT: ${customer.cuit}` : null,
         customer.email ? `Email: ${customer.email}` : null,
         customer.phone ? `Teléfono: ${customer.phone}` : null,
         customer.notes ? `Notas: ${customer.notes}` : null,
@@ -398,9 +420,19 @@ export default function CatalogPage() {
     }
   }
 
+  // Scroll to a product highlighted via URL ?p=PRODUCT_ID
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const productId = params.get("p");
+    if (!productId || !items.length) return;
+    const el = document.getElementById(`product-${productId}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [items, location.search]);
+
   const showSkeleton = loading && !initialLoaded;
   const showOverlay = loading && initialLoaded;
   const closeProductModal = () => setSelectedProduct(null);
+  const showUsd = rateMode !== "disabled";
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
@@ -432,16 +464,30 @@ export default function CatalogPage() {
                   </div>
                 ))}
               </dl>
-              <div className="text-xs text-slate-500">
-                {exchangeRateLoading && <span>Actualizando tipo de cambio…</span>}
-                {!exchangeRateLoading && exchangeRate && (
-                  <span>
-                    Conversión aplicada: $ {Number(exchangeRate).toFixed(2)} ARS por USD
-                    {exchangeRateDate
-                      ? ` (actualizado al ${new Intl.DateTimeFormat("es-AR").format(
-                          new Date(exchangeRateDate)
-                        )})`
-                      : ""}
+              <div className="space-y-1 text-xs text-slate-500">
+                {exchangeRateLoading && <span>Actualizando cotización…</span>}
+                {!exchangeRateLoading && exchangeRate > 0 && (
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    <span>
+                      Cotización: ${Number(exchangeRate).toLocaleString("es-AR", { minimumFractionDigits: 2 })} ARS/USD
+                      {exchangeRateDate && exchangeRateDate !== "manual"
+                        ? ` (${new Intl.DateTimeFormat("es-AR").format(new Date(exchangeRateDate))})`
+                        : ""}
+                    </span>
+                    {rateMode && rateMode !== "disabled" && (
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        rateMode === "manual"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-sky-100 text-sky-700"
+                      }`}>
+                        {rateMode === "manual" ? "MANUAL" : "AUTO"}
+                      </span>
+                    )}
+                  </span>
+                )}
+                {!exchangeRateLoading && rateUsedFallback && (
+                  <span className="block text-amber-600">
+                    Usando última cotización guardada (API temporalmente no disponible).
                   </span>
                 )}
                 {!exchangeRateLoading && exchangeRateError && (
@@ -538,6 +584,7 @@ export default function CatalogPage() {
                   discount={discount}
                   onAdd={addToCart}
                   exchangeRate={exchangeRate}
+                  showUsd={showUsd}
                   onSelect={setSelectedProduct}
                 />
               )}
@@ -589,6 +636,7 @@ export default function CatalogPage() {
         isLoggedIn={isLoggedIn}
         discount={discount}
         exchangeRate={exchangeRate}
+        showUsd={showUsd}
         onAdd={(product) => {
           addToCart(product);
           closeProductModal();
@@ -602,6 +650,7 @@ export default function CatalogPage() {
         submitting={orderSubmitting}
         result={orderResult}
         onSubmit={submitOrder}
+        profile={profile}
       />
     </main>
   );
@@ -741,7 +790,7 @@ function ActiveFilters({ categories, selected, onRemove, onClear }) {
   );
 }
 
-function ProductGrid({ items, isLoggedIn, discount = 0, onAdd, exchangeRate, onSelect }) {
+function ProductGrid({ items, isLoggedIn, discount = 0, onAdd, exchangeRate, showUsd = true, onSelect }) {
   if (!items.length) {
     return (
       <div className="rounded-3xl border border-dashed border-slate-300/60 bg-white p-12 text-center text-sm text-slate-500">
@@ -750,15 +799,16 @@ function ProductGrid({ items, isLoggedIn, discount = 0, onAdd, exchangeRate, onS
     );
   }
   return (
-    <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <ul className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {items.map((p) => (
-        <li key={p.id}>
+        <li key={p.id} id={`product-${p.id}`}>
           <ProductCard
             product={p}
             isLoggedIn={isLoggedIn}
             discount={discount}
             onAdd={onAdd}
             exchangeRate={exchangeRate}
+            showUsd={showUsd}
             onSelect={() => onSelect?.(p)}
           />
         </li>
@@ -769,11 +819,11 @@ function ProductGrid({ items, isLoggedIn, discount = 0, onAdd, exchangeRate, onS
 
 function ProductGridSkeleton({ count = 8 }) {
   return (
-    <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <ul className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {Array.from({ length: count }).map((_, index) => (
         <li key={index} className="animate-pulse">
-          <div className="h-full rounded-3xl border border-slate-200 bg-slate-50 p-4">
-            <div className="aspect-square w-full rounded-2xl bg-slate-200" />
+          <div className="h-full rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            <div className="aspect-[4/3] w-full rounded-xl bg-slate-200" />
             <div className="mt-4 space-y-3">
               <div className="h-3 w-24 rounded bg-slate-200/80" />
               <div className="h-4 w-40 rounded bg-slate-200/80" />
@@ -786,22 +836,72 @@ function ProductGridSkeleton({ count = 8 }) {
   );
 }
 
-function ProductCard({ product, onAdd, discount = 0, isLoggedIn, exchangeRate, onSelect }) {
+function ProductCard({ product, onAdd, discount = 0, isLoggedIn, exchangeRate, showUsd = true, onSelect }) {
+  const [shareOpen, setShareOpen] = useState(false);
+  const [sharePos, setSharePos] = useState({ top: 0, right: 0 });
+  const shareButtonRef = useRef(null);
+  const [copied, setCopied] = useState(false);
+  const [activeImg, setActiveImg] = useState(0);
+  const timerRef = useRef(null);
+  const images = getProductImages(product);
   const available = (product.stock ?? 0) > 0;
+
+  useEffect(() => () => clearInterval(timerRef.current), []);
+
+  useEffect(() => {
+    if (!shareOpen) return;
+    const close = () => setShareOpen(false);
+    window.addEventListener("scroll", close, true);
+    return () => window.removeEventListener("scroll", close, true);
+  }, [shareOpen]);
+
+  const productUrl = `${SITE_URL}/catalogo?p=${product.id}`;
+
+  function shareToWhatsApp() {
+    const text = encodeURIComponent(`Mirá esta bici: ${product.name} — ${productUrl}`);
+    window.open(`https://wa.me/?text=${text}`, "_blank");
+    setShareOpen(false);
+  }
+
+  function shareToFacebook() {
+    window.open(`https://www.facebook.com/sharer.php?u=${encodeURIComponent(productUrl)}`, "_blank");
+    setShareOpen(false);
+  }
+
+  function copyLink() {
+    navigator.clipboard.writeText(productUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+    setShareOpen(false);
+  }
+
+  function copyImageForInstagram() {
+    const url = images[0] || productUrl;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+    setShareOpen(false);
+  }
   const effectiveDiscount = Number.isFinite(Number(discount)) ? Number(discount) : 0;
   const priceUsd = Number(product?.price || 0);
-  const priceArs = toArs(priceUsd, exchangeRate);
-  const basePriceArs = Number.isFinite(priceArs) ? priceArs : priceUsd;
-  const discountedPriceArs = getEffectivePrice(basePriceArs, effectiveDiscount, isLoggedIn);
+  const contabiliumArs = product.priceArs != null ? Number(product.priceArs) : null;
+  const convertedArs = toArs(priceUsd, exchangeRate);
+  const basePriceArs = Number.isFinite(contabiliumArs) && contabiliumArs > 0
+    ? contabiliumArs
+    : (Number.isFinite(convertedArs) && convertedArs > 0 ? convertedArs : null);
+  const discountedPriceArs = getEffectivePrice(basePriceArs ?? 0, effectiveDiscount, isLoggedIn);
   const discountedPriceUsd = getEffectivePrice(priceUsd, effectiveDiscount, isLoggedIn);
   const hasDiscount =
     isLoggedIn &&
     effectiveDiscount > 0 &&
+    basePriceArs != null &&
     discountedPriceArs !== basePriceArs &&
     basePriceArs > 0;
   return (
     <article
-      className="group relative h-full overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_30px_60px_-35px_rgba(15,23,42,0.18)] transition duration-200 hover:-translate-y-1 hover:border-sky-500/60"
+      className="group relative h-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_15px_35px_-20px_rgba(15,23,42,0.18)] transition duration-200 hover:-translate-y-1 hover:border-sky-500/60"
       role="button"
       tabIndex={0}
       onClick={() => onSelect?.(product)}
@@ -811,13 +911,66 @@ function ProductCard({ product, onAdd, discount = 0, isLoggedIn, exchangeRate, o
           onSelect?.(product);
         }
       }}
+      onMouseEnter={() => {
+        if (images.length > 1) {
+          timerRef.current = setInterval(
+            () => setActiveImg((c) => (c + 1) % images.length),
+            1200
+          );
+        }
+      }}
+      onMouseLeave={() => {
+        clearInterval(timerRef.current);
+        setActiveImg(0);
+      }}
     >
-      <div className="aspect-square w-full overflow-hidden rounded-2xl bg-slate-100">
-        {product.imageUrl ? (
+      {/* Share button */}
+      <div className="absolute right-2 top-2 z-10" onClick={(e) => e.stopPropagation()}>
+        <button
+          ref={shareButtonRef}
+          onClick={() => {
+            const rect = shareButtonRef.current?.getBoundingClientRect();
+            if (rect) setSharePos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+            setShareOpen((v) => !v);
+          }}
+          className="flex h-7 w-7 items-center justify-center rounded-full bg-white/80 shadow backdrop-blur transition hover:bg-white"
+          title="Compartir"
+        >
+          <ShareIcon className="h-3.5 w-3.5 text-slate-500" />
+        </button>
+        {shareOpen && createPortal(
+          <>
+            <div className="fixed inset-0 z-[90]" onClick={() => setShareOpen(false)} />
+            <div className="fixed z-[100] w-44 rounded-2xl border border-slate-200 bg-white p-1 shadow-xl" style={{ top: sharePos.top, right: sharePos.right }}>
+              <button onClick={shareToWhatsApp} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">
+                <span className="text-emerald-500">W</span> WhatsApp
+              </button>
+              <button onClick={shareToFacebook} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">
+                <span className="text-blue-600">f</span> Facebook
+              </button>
+              <button onClick={copyImageForInstagram} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">
+                <span className="text-pink-500">📷</span> Instagram (copiar URL)
+              </button>
+              <button onClick={copyLink} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">
+                <span>🔗</span> Copiar link
+              </button>
+            </div>
+          </>,
+          document.body
+        )}
+        {copied && (
+          <div className="absolute right-0 top-9 z-20 rounded-xl bg-slate-900 px-2 py-1 text-[10px] text-white shadow">
+            ¡Copiado!
+          </div>
+        )}
+      </div>
+
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-slate-100 bg-white">
+        {images.length > 0 ? (
           <img
-            src={product.imageUrl}
+            src={images[activeImg]}
             alt={product.name}
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+            className="h-full w-full object-contain p-1 transition-opacity duration-300"
             loading="lazy"
           />
         ) : (
@@ -825,8 +978,23 @@ function ProductCard({ product, onAdd, discount = 0, isLoggedIn, exchangeRate, o
             Sin imagen
           </div>
         )}
+        {images.length > 1 && (
+          <div className="pointer-events-none absolute bottom-1.5 left-0 right-0 flex justify-center gap-1">
+            {images.slice(0, 5).map((_, i) => (
+              <span
+                key={i}
+                className={`h-1 w-1 rounded-full transition-colors ${
+                  i === activeImg ? "bg-sky-500" : "bg-slate-300"
+                }`}
+              />
+            ))}
+            {images.length > 5 && (
+              <span className="text-[9px] text-slate-400">+{images.length - 5}</span>
+            )}
+          </div>
+        )}
       </div>
-      <div className="mt-4 space-y-3">
+      <div className="mt-3 space-y-2">
         {product.brand ? (
           <p className="text-xs uppercase tracking-wide text-slate-500">{product.brand}</p>
         ) : null}
@@ -839,68 +1007,54 @@ function ProductCard({ product, onAdd, discount = 0, isLoggedIn, exchangeRate, o
             {product.description}
           </p>
         ) : null}
-        <div className="flex items-center justify-between text-xs text-slate-500">
+        <div className="space-y-1">
           <span
-            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 font-medium ${
-              available
-                ? "bg-emerald-100 text-emerald-600"
-                : "bg-slate-100 text-slate-500"
+            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+              available ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-500"
             }`}
           >
-            <span className="h-2 w-2 rounded-full bg-current" />
+            <span className="h-1.5 w-1.5 rounded-full bg-current" />
             {available ? "Disponible" : "Sin stock"}
           </span>
-          {isLoggedIn ? (
-            <div className="text-right space-y-1">
-              {Number.isFinite(priceArs) ? (
-                hasDiscount ? (
-                  <>
-                    <span className="block text-[10px] font-medium text-slate-400 line-through">
-                      {money(basePriceArs)}
-                    </span>
-                    <span className="text-sm font-semibold text-slate-900">
-                      {money(discountedPriceArs)}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-sm font-semibold text-slate-900">
-                    {money(discountedPriceArs)}
-                  </span>
-                )
-              ) : (
-                <span className="text-sm font-semibold text-slate-900">
-                  {formatUsd(discountedPriceUsd)}
-                </span>
-              )}
-              <div className="text-[11px] font-medium text-slate-600">
-                {hasDiscount ? (
-                  <>
-                    <span className="mr-2 line-through text-slate-400">{formatUsd(priceUsd)}</span>
-                    <span>{formatUsd(discountedPriceUsd)} USD</span>
-                  </>
-                ) : (
-                  <span>{formatUsd(discountedPriceUsd)} USD</span>
-                )}
-              </div>
-            </div>
+          {!isLoggedIn ? (
+            <p className="text-xs text-slate-500">Iniciá sesión para ver el precio</p>
           ) : (
-            <span className="text-[11px] font-medium text-slate-500">
-              Iniciá sesión para ver precios
-            </span>
+            <>
+              {basePriceArs != null && basePriceArs > 0 ? (
+                <div>
+                  {hasDiscount && (
+                    <div className="text-[10px] font-medium text-slate-400 line-through">
+                      {money(basePriceArs)}
+                    </div>
+                  )}
+                  <div className="text-sm font-semibold text-slate-900">
+                    {money(hasDiscount ? discountedPriceArs : basePriceArs)}
+                  </div>
+                  {showUsd && (
+                    <div className="text-[10px] text-slate-400">
+                      {hasDiscount
+                        ? <><span className="line-through mr-1">{formatUsd(priceUsd)}</span>{formatUsd(discountedPriceUsd)} USD</>
+                        : <>{formatUsd(discountedPriceUsd)} USD</>
+                      }
+                    </div>
+                  )}
+                </div>
+              ) : null}
+              {hasDiscount && (
+                <p className="text-[10px] text-emerald-600">Descuento del {effectiveDiscount}%</p>
+              )}
+            </>
           )}
         </div>
-        {hasDiscount ? (
-          <p className="text-xs text-emerald-600">Descuento activo del {effectiveDiscount}%.</p>
-        ) : null}
         <button
           disabled={!available}
           onClick={(e) => {
             e.stopPropagation();
             onAdd(product);
           }}
-          className={`flex w-full items-center justify-center rounded-2xl px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-sky-400/60 ${
+          className={`flex w-full items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-sky-400/60 ${
             available
-              ? "bg-gradient-to-r from-sky-500 to-indigo-500 text-white shadow-lg shadow-sky-200/60 hover:-translate-y-0.5"
+              ? "bg-gradient-to-r from-sky-500 to-indigo-500 text-white shadow-md shadow-sky-200/60 hover:-translate-y-0.5"
               : "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-500"
           }`}
         >
@@ -911,8 +1065,95 @@ function ProductCard({ product, onAdd, discount = 0, isLoggedIn, exchangeRate, o
   );
 }
 
-function ProductModal({ product, onClose, isLoggedIn, discount = 0, exchangeRate, onAdd }) {
+function ImageGallery({ images, productName }) {
+  const [current, setCurrent] = useState(0);
+  const touchStartX = useRef(null);
+
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === "ArrowLeft") setCurrent((c) => Math.max(0, c - 1));
+      if (e.key === "ArrowRight") setCurrent((c) => Math.min(images.length - 1, c + 1));
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [images.length]);
+
+  if (!images.length) {
+    return (
+      <div className="flex aspect-[4/3] items-center justify-center rounded-2xl bg-slate-100 text-sm text-slate-500">
+        Sin imagen
+      </div>
+    );
+  }
+
+  const prev = () => setCurrent((c) => Math.max(0, c - 1));
+  const next = () => setCurrent((c) => Math.min(images.length - 1, c + 1));
+
+  return (
+    <div className="space-y-3">
+      <div
+        className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-50"
+        onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+        onTouchEnd={(e) => {
+          if (touchStartX.current === null) return;
+          const delta = e.changedTouches[0].clientX - touchStartX.current;
+          if (delta > 40) prev();
+          else if (delta < -40) next();
+          touchStartX.current = null;
+        }}
+      >
+        <img
+          src={images[current]}
+          alt={productName}
+          className="h-full w-full object-contain p-2 transition-opacity duration-200"
+          loading={current === 0 ? "eager" : "lazy"}
+        />
+        {images.length > 1 && (
+          <>
+            <button
+              onClick={(e) => { e.stopPropagation(); prev(); }}
+              disabled={current === 0}
+              className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-1.5 shadow backdrop-blur transition hover:bg-white disabled:opacity-30"
+            >
+              <ChevronLeftIcon className="h-4 w-4 text-slate-700" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); next(); }}
+              disabled={current === images.length - 1}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-1.5 shadow backdrop-blur transition hover:bg-white disabled:opacity-30"
+            >
+              <ChevronRightIcon className="h-4 w-4 text-slate-700" />
+            </button>
+            <div className="absolute bottom-2 left-0 right-0 flex justify-center">
+              <span className="rounded-full bg-black/40 px-2 py-0.5 text-[10px] text-white">
+                {current + 1} / {images.length}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+      {images.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {images.map((src, i) => (
+            <button
+              key={i}
+              onClick={(e) => { e.stopPropagation(); setCurrent(i); }}
+              className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 transition ${
+                i === current ? "border-sky-500" : "border-transparent hover:border-slate-300"
+              }`}
+            >
+              <img src={src} alt="" className="h-full w-full object-cover" loading="lazy" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProductModal({ product, onClose, isLoggedIn, discount = 0, exchangeRate, showUsd = true, onAdd }) {
   if (!product) return null;
+  const images = getProductImages(product);
   const available = (product.stock ?? 0) > 0;
   const effectiveDiscount = Number.isFinite(Number(discount)) ? Number(discount) : 0;
   const priceUsd = Number(product?.price || 0);
@@ -925,20 +1166,16 @@ function ProductModal({ product, onClose, isLoggedIn, discount = 0, exchangeRate
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-4xl rounded-3xl border border-slate-200 bg-white shadow-2xl">
+      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-200 bg-white shadow-2xl">
         <button
-          className="absolute right-4 top-4 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600 transition hover:bg-slate-200"
+          className="sticky top-4 float-right mr-4 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600 transition hover:bg-slate-200 z-10"
           onClick={onClose}
         >
           Cerrar
         </button>
-        <div className="grid gap-6 p-6 md:grid-cols-2">
-          <div className="overflow-hidden rounded-2xl bg-slate-100">
-            {product.imageUrl ? (
-              <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full min-h-[280px] items-center justify-center text-sm text-slate-600">Sin imagen</div>
-            )}
+        <div className="flex flex-col gap-6 p-6">
+          <div>
+            <ImageGallery images={images} productName={product.name} />
           </div>
           <div className="space-y-4 text-slate-700">
             {product.brand ? (
@@ -965,7 +1202,9 @@ function ProductModal({ product, onClose, isLoggedIn, discount = 0, exchangeRate
               ) : null}
             </div>
             <div className="space-y-1 text-sm font-medium text-slate-900">
-              {isLoggedIn ? (
+              {!isLoggedIn ? (
+                <p className="text-sm text-slate-500">Iniciá sesión para ver el precio</p>
+              ) : (
                 <>
                   {Number.isFinite(priceArs) ? (
                     hasDiscount ? (
@@ -976,25 +1215,23 @@ function ProductModal({ product, onClose, isLoggedIn, discount = 0, exchangeRate
                     ) : (
                       <span className="text-2xl font-semibold">{money(discountedPriceArs)}</span>
                     )
-                  ) : (
-                    <span className="text-2xl font-semibold">{formatUsd(discountedPriceUsd)}</span>
-                  )}
-                  <div className="text-xs font-medium text-slate-600">
-                    {hasDiscount ? (
-                      <>
-                        <span className="mr-2 line-through text-slate-400">{formatUsd(priceUsd)}</span>
-                        <span>{formatUsd(discountedPriceUsd)} USD</span>
-                      </>
-                    ) : (
-                      <span>{formatUsd(discountedPriceUsd)} USD</span>
-                    )}
-                  </div>
-                  {hasDiscount ? (
-                    <p className="text-xs text-emerald-600">Descuento activo del {effectiveDiscount}%.</p>
                   ) : null}
+                  {showUsd && Number.isFinite(priceArs) && (
+                    <div className="text-xs font-medium text-slate-600">
+                      {hasDiscount ? (
+                        <>
+                          <span className="mr-2 line-through text-slate-400">{formatUsd(priceUsd)}</span>
+                          <span>{formatUsd(discountedPriceUsd)} USD</span>
+                        </>
+                      ) : (
+                        <span>{formatUsd(discountedPriceUsd)} USD</span>
+                      )}
+                    </div>
+                  )}
+                  {hasDiscount && (
+                    <p className="text-xs text-emerald-600">Descuento activo del {effectiveDiscount}%.</p>
+                  )}
                 </>
-              ) : (
-                <p className="text-sm text-slate-600">Iniciá sesión para ver precios.</p>
               )}
             </div>
             <div className="flex flex-wrap gap-3 text-xs text-slate-600">
@@ -1209,11 +1446,13 @@ function CartDrawer({
   );
 }
 
-function OrderModal({ open, onClose, submitting, result, onSubmit }) {
+function OrderModal({ open, onClose, submitting, result, onSubmit, profile }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [cuit, setCuit] = useState("");
+  const [cuitError, setCuitError] = useState("");
 
   useEffect(() => {
     if (!open) {
@@ -1221,8 +1460,40 @@ function OrderModal({ open, onClose, submitting, result, onSubmit }) {
       setEmail("");
       setPhone("");
       setNotes("");
+      setCuit("");
+      setCuitError("");
+    } else {
+      // Auto-fill CUIT from user profile if available
+      if (profile?.cuit) setCuit(profile.cuit);
     }
-  }, [open]);
+  }, [open, profile]);
+
+  function onCuitChange(e) {
+    const formatted = formatCuit(e.target.value);
+    setCuit(formatted);
+    setCuitError("");
+  }
+
+  function onCuitBlur() {
+    if (cuit && !validateCuit(cuit)) {
+      setCuitError("CUIT inválido. Ingresá los 11 dígitos correctamente.");
+    } else {
+      setCuitError("");
+    }
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (!cuit) {
+      setCuitError("El CUIT es obligatorio.");
+      return;
+    }
+    if (!validateCuit(cuit)) {
+      setCuitError("CUIT inválido. Ingresá los 11 dígitos correctamente.");
+      return;
+    }
+    onSubmit({ name, email, phone, notes, cuit });
+  }
 
   if (!open) return null;
 
@@ -1254,15 +1525,11 @@ function OrderModal({ open, onClose, submitting, result, onSubmit }) {
             </div>
           </div>
         ) : (
-          <form
-            className="mt-6 space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              onSubmit({ name, email, phone, notes });
-            }}
-          >
+          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">
-              <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Nombre</label>
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Nombre <span className="text-rose-500">*</span>
+              </label>
               <input
                 required
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
@@ -1270,9 +1537,33 @@ function OrderModal({ open, onClose, submitting, result, onSubmit }) {
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                CUIT <span className="text-rose-500">*</span>
+              </label>
+              <input
+                required
+                placeholder="XX-XXXXXXXX-X"
+                inputMode="numeric"
+                className={`w-full rounded-2xl border bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:ring-2 ${
+                  cuitError
+                    ? "border-rose-400 focus:border-rose-400 focus:ring-rose-400/40"
+                    : "border-slate-200 focus:border-sky-500 focus:ring-sky-500/40"
+                }`}
+                value={cuit}
+                onChange={onCuitChange}
+                onBlur={onCuitBlur}
+              />
+              {profile?.cuit && cuit === profile.cuit && (
+                <p className="text-xs text-sky-600">Auto-completado desde tu perfil.</p>
+              )}
+              {cuitError && <p className="text-xs text-rose-500">{cuitError}</p>}
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Email</label>
+                <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Email <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="email"
                   required
@@ -1308,7 +1599,7 @@ function OrderModal({ open, onClose, submitting, result, onSubmit }) {
                 Cancelar
               </button>
               <button
-                disabled={submitting}
+                disabled={submitting || !!cuitError}
                 className="rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-200/60 transition focus:outline-none focus:ring-2 focus:ring-sky-400/60 disabled:opacity-60"
               >
                 <BusyButtonContent busy={submitting} busyLabel="Enviando…" label="Enviar pedido" />
@@ -1318,5 +1609,33 @@ function OrderModal({ open, onClose, submitting, result, onSubmit }) {
         )}
       </div>
     </div>
+  );
+}
+
+function ChevronLeftIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+      <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+      <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ShareIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+    </svg>
   );
 }

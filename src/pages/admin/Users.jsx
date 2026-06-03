@@ -5,6 +5,7 @@ import {
   updateAccount,
   toggleAccountStatus,
   removeAccount,
+  syncClientContabiliumProfile,
 } from "../../services/accounts";
 import { approveAndInvite } from "../../services/invite";
 import { auth } from "../../firebase";
@@ -307,11 +308,19 @@ export default function Users() {
 }
 
 function UserModal({ open, onClose, onSubmit, initial, customerTypes }) {
-  const [name, setName] = useState(initial?.name || "");
-  const [email, setEmail] = useState(initial?.email || "");
-  const [role, setRole] = useState(initial?.role || "viewer");
-  const [status, setStatus] = useState(initial?.status || "activo");
+  const [name, setName]               = useState(initial?.name || "");
+  const [email, setEmail]             = useState(initial?.email || "");
+  const [role, setRole]               = useState(initial?.role || "viewer");
+  const [status, setStatus]           = useState(initial?.status || "activo");
   const [customerTypeId, setCustomerTypeId] = useState(initial?.customerTypeId || "");
+  const [contabiliumId, setContabiliumId]   = useState(initial?.contabiliumId?.toString() || "");
+  const [contabiliumInfo, setContabiliumInfo] = useState(
+    initial?.idListaPrecio != null
+      ? { idListaPrecio: initial.idListaPrecio, condicionIva: initial.condicionIva }
+      : null
+  );
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -320,7 +329,30 @@ function UserModal({ open, onClose, onSubmit, initial, customerTypes }) {
     setRole(initial?.role || "viewer");
     setStatus(initial?.status || "activo");
     setCustomerTypeId(initial?.customerTypeId || "");
+    setContabiliumId(initial?.contabiliumId?.toString() || "");
+    setContabiliumInfo(
+      initial?.idListaPrecio != null
+        ? { idListaPrecio: initial.idListaPrecio, condicionIva: initial.condicionIva }
+        : null
+    );
+    setSyncError("");
   }, [initial, open]);
+
+  async function handleSyncContabilium() {
+    if (!initial?.id) return;
+    setSyncing(true);
+    setSyncError("");
+    try {
+      await updateAccount(initial.id, { contabiliumId: contabiliumId ? Number(contabiliumId) : null });
+      const result = await syncClientContabiliumProfile(initial.id);
+      setContabiliumId(result.contabiliumId.toString());
+      setContabiliumInfo({ idListaPrecio: result.idListaPrecio, condicionIva: null });
+    } catch (e) {
+      setSyncError(e.message || "Error al sincronizar con Contabilium");
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   if (!open) return null;
 
@@ -341,7 +373,14 @@ function UserModal({ open, onClose, onSubmit, initial, customerTypes }) {
           onSubmit={async (e) => {
             e.preventDefault();
             setSaving(true);
-            await onSubmit({ name, email, role, status, customerTypeId: customerTypeId || null });
+            await onSubmit({
+              name,
+              email,
+              role,
+              status,
+              customerTypeId:  customerTypeId || null,
+              contabiliumId:   contabiliumId ? Number(contabiliumId) : null,
+            });
             setSaving(false);
           }}
         >
@@ -404,6 +443,50 @@ function UserModal({ open, onClose, onSubmit, initial, customerTypes }) {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* ── Contabilium ── */}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Contabilium</p>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                placeholder="ID de cliente en Contabilium"
+                className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
+                value={contabiliumId}
+                onChange={(e) => setContabiliumId(e.target.value)}
+              />
+              {initial?.id && (
+                <button
+                  type="button"
+                  disabled={syncing}
+                  onClick={handleSyncContabilium}
+                  className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-2 text-xs font-semibold text-sky-600 transition hover:bg-sky-100 disabled:opacity-60"
+                >
+                  {syncing ? "Sincronizando…" : "Sincronizar"}
+                </button>
+              )}
+            </div>
+            {syncError && (
+              <p className="text-xs text-rose-500">{syncError}</p>
+            )}
+            {contabiliumInfo && (
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-emerald-600 font-medium">
+                  ✓ Vinculado
+                </span>
+                {contabiliumInfo.idListaPrecio != null && (
+                  <span className="rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-slate-600">
+                    Lista de precios: #{contabiliumInfo.idListaPrecio}
+                  </span>
+                )}
+                {contabiliumInfo.condicionIva && (
+                  <span className="rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-slate-600">
+                    IVA: {contabiliumInfo.condicionIva}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-2">

@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
-import { Link, NavLink } from "react-router-dom"; // v5
+import { Link, NavLink, useHistory } from "react-router-dom";
+import { useAuth } from "../../auth/AuthContext";
 
-/**
- * Navbar B2B – tono luminoso por defecto
- * - Barra fija con fondo blanco translúcido y borde suave.
- * - Podés activar el modo transparente pasando transparentOnTop={true}.
- */
+const ADMIN_ROLES = ["admin", "manager", "viewer"];
+
 export default function Navbar({
-  logoSrc = "/img/samurai-negro-total.png", // 👈 Vite: si está en public, usalo así
+  logoSrc = "/img/samurai-negro-total.png",
   onLogin,
-  transparentOnTop = false, // <- transparente solo si se solicita
+  transparentOnTop = false,
   scrollOffsetPx = 8,
 }) {
+  const { user, profile, loading: authLoading, logout } = useAuth();
+  const history = useHistory();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -24,7 +24,14 @@ export default function Navbar({
 
   const close = () => setOpen(false);
 
-  // Transparente solo si lo pedís por prop, estás arriba, y el menú no está abierto
+  const handleLogout = async () => {
+    close();
+    await logout();
+    history.push("/");
+  };
+
+  const isAdminUser = !authLoading && ADMIN_ROLES.includes(profile?.role);
+  const isClient = !authLoading && !!user && !isAdminUser;
   const isTransparentNow = transparentOnTop && !scrolled && !open;
 
   const headerBg = isTransparentNow
@@ -97,13 +104,28 @@ export default function Navbar({
               linkInactive={linkInactive}
               linkActive={linkActive}
               ringClass={ringColor}
+              isAdminUser={isAdminUser}
+              isClient={isClient}
+              authLoading={authLoading}
             />
           </div>
 
           {/* Right actions (desktop) */}
           <div className="hidden md:flex md:items-center md:gap-3">
-            <LoginButton onLogin={onLogin} outlineBtn={outlineBtn} />
-            <CTA solidBtn={solidBtn} />
+            {!authLoading && (user ? (
+              <UserMenu
+                user={user}
+                profile={profile}
+                onLogout={handleLogout}
+                outlineBtn={outlineBtn}
+                isTransparentNow={isTransparentNow}
+              />
+            ) : (
+              <>
+                <LoginButton onLogin={onLogin} outlineBtn={outlineBtn} />
+                <CTA solidBtn={solidBtn} />
+              </>
+            ))}
           </div>
 
           {/* Mobile toggle */}
@@ -142,42 +164,61 @@ export default function Navbar({
             <MobileLink to="/catalogo" onClick={close} isTransparent={isTransparentNow} ringClass={ringColor}>
               Catálogo
             </MobileLink>
-            <MobileLink
-              to="/estado-de-pedido"
-              onClick={close}
-              isTransparent={isTransparentNow}
-              ringClass={ringColor}
-            >
-              Mis pedidos
-            </MobileLink>
-            <MobileLink
-              to="/quiero-ser-cliente"
-              onClick={close}
-              isTransparent={isTransparentNow}
-              ringClass={ringColor}
-            >
-              Quiero ser cliente
-            </MobileLink>
-            <MobileLink to="/admin" onClick={close} isTransparent={isTransparentNow} ringClass={ringColor}>
-              Admin
-            </MobileLink>
+            {isClient && (
+              <>
+                <MobileLink to="/mis-pedidos" onClick={close} isTransparent={isTransparentNow} ringClass={ringColor}>
+                  Mis comprobantes
+                </MobileLink>
+                <MobileLink to="/mi-cuenta" onClick={close} isTransparent={isTransparentNow} ringClass={ringColor}>
+                  Mi cuenta
+                </MobileLink>
+              </>
+            )}
+            {!authLoading && !isClient && !isAdminUser && (
+              <>
+                <MobileLink to="/estado-de-pedido" onClick={close} isTransparent={isTransparentNow} ringClass={ringColor}>
+                  Estado de pedido
+                </MobileLink>
+                <MobileLink to="/quiero-ser-cliente" onClick={close} isTransparent={isTransparentNow} ringClass={ringColor}>
+                  Quiero ser cliente
+                </MobileLink>
+              </>
+            )}
+            {isAdminUser && (
+              <MobileLink to="/admin" onClick={close} isTransparent={isTransparentNow} ringClass={ringColor}>
+                Admin
+              </MobileLink>
+            )}
             <div
               className={`border-t pt-2 ${
                 isTransparentNow ? "border-white/15" : "border-slate-200/70"
               }`}
             />
-            <button
-              onClick={() => {
-                close();
-                if (onLogin) onLogin();
-              }}
-              className={outlineBtn + " w-full text-left"}
-            >
-              Ingresar
-            </button>
-            <Link to="/quiero-ser-cliente" onClick={close} className={solidBtn + " w-full text-center"}>
-              Quiero ser cliente
-            </Link>
+            {!authLoading && (user ? (
+              <>
+                <div className={`px-4 py-2 text-xs ${isTransparentNow ? "text-white/70" : "text-slate-500"}`}>
+                  {user.displayName || user.email}
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className={outlineBtn + " w-full text-left"}
+                >
+                  Cerrar sesión
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => { close(); if (onLogin) onLogin(); }}
+                  className={outlineBtn + " w-full text-left"}
+                >
+                  Ingresar
+                </button>
+                <Link to="/quiero-ser-cliente" onClick={close} className={solidBtn + " w-full text-center"}>
+                  Quiero ser cliente
+                </Link>
+              </>
+            ))}
           </div>
         </div>
       </nav>
@@ -185,7 +226,52 @@ export default function Navbar({
   );
 }
 
-function PrimaryLinks({ onNavigate, linkInactive, linkActive, ringClass }) {
+function UserMenu({ user, profile, onLogout, outlineBtn, isTransparentNow }) {
+  const [dropOpen, setDropOpen] = useState(false);
+  const displayName = profile?.name || user.displayName || user.email?.split("@")[0] || "Usuario";
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setDropOpen((v) => !v)}
+        className={outlineBtn + " gap-2"}
+      >
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-500 text-xs font-bold text-white">
+          {displayName[0]?.toUpperCase()}
+        </span>
+        <span className="max-w-[120px] truncate">{displayName}</span>
+        <svg className="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+        </svg>
+      </button>
+      {dropOpen && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setDropOpen(false)} />
+          <div className={`absolute right-0 z-20 mt-2 w-48 rounded-2xl border p-1 shadow-xl ${
+            isTransparentNow
+              ? "border-white/20 bg-slate-900/90 text-white backdrop-blur"
+              : "border-slate-200 bg-white text-slate-900"
+          }`}>
+            <div className={`px-3 py-2 text-xs ${isTransparentNow ? "text-white/60" : "text-slate-500"}`}>
+              {user.email}
+            </div>
+            <hr className={isTransparentNow ? "border-white/15 my-1" : "border-slate-100 my-1"} />
+            <button
+              onClick={onLogout}
+              className={`w-full rounded-xl px-3 py-2 text-left text-sm transition ${
+                isTransparentNow ? "hover:bg-white/10" : "hover:bg-slate-100"
+              }`}
+            >
+              Cerrar sesión
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function PrimaryLinks({ onNavigate, linkInactive, linkActive, ringClass, isAdminUser, isClient, authLoading }) {
   const base =
     `text-sm font-medium transition rounded-lg px-3 py-2 focus:outline-none focus-visible:ring-2 ${ringClass}`;
   return (
@@ -196,15 +282,31 @@ function PrimaryLinks({ onNavigate, linkInactive, linkActive, ringClass }) {
       <NavLink to="/catalogo" onClick={onNavigate} className={base + " " + linkInactive} activeClassName={linkActive} role="menuitem">
         Catálogo
       </NavLink>
-      <NavLink to="/estado-de-pedido" onClick={onNavigate} className={base + " " + linkInactive} activeClassName={linkActive} role="menuitem">
-        Mis pedidos
-      </NavLink>
-      <NavLink to="/quiero-ser-cliente" onClick={onNavigate} className={base + " " + linkInactive} activeClassName={linkActive} role="menuitem">
-        Quiero ser cliente
-      </NavLink>
-      <NavLink to="/admin" onClick={onNavigate} className={base + " " + linkInactive} activeClassName={linkActive} role="menuitem">
-        Admin
-      </NavLink>
+      {isClient && (
+        <>
+          <NavLink to="/mis-pedidos" onClick={onNavigate} className={base + " " + linkInactive} activeClassName={linkActive} role="menuitem">
+            Mis comprobantes
+          </NavLink>
+          <NavLink to="/mi-cuenta" onClick={onNavigate} className={base + " " + linkInactive} activeClassName={linkActive} role="menuitem">
+            Mi cuenta
+          </NavLink>
+        </>
+      )}
+      {!authLoading && !isClient && !isAdminUser && (
+        <>
+          <NavLink to="/estado-de-pedido" onClick={onNavigate} className={base + " " + linkInactive} activeClassName={linkActive} role="menuitem">
+            Estado de pedido
+          </NavLink>
+          <NavLink to="/quiero-ser-cliente" onClick={onNavigate} className={base + " " + linkInactive} activeClassName={linkActive} role="menuitem">
+            Quiero ser cliente
+          </NavLink>
+        </>
+      )}
+      {isAdminUser && (
+        <NavLink to="/admin" onClick={onNavigate} className={base + " " + linkInactive} activeClassName={linkActive} role="menuitem">
+          Admin
+        </NavLink>
+      )}
     </div>
   );
 }

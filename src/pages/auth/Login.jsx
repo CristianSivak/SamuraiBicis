@@ -1,29 +1,52 @@
 // src/pages/auth/Login.jsx
 import { useState } from "react";
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
-import { auth, actionCodeSettings } from "../../firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { useHistory } from "react-router-dom";
+import { auth, db, actionCodeSettings } from "../../firebase";
 import { BusyButtonContent, LoadingSpinner } from "../../components/ui/LoadingIndicators";
 
+const ADMIN_ROLES = ["admin", "manager", "viewer"];
+
 export default function Login() {
+  const history = useHistory();
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [resetting, setResetting] = useState(false);
+  const [welcome, setWelcome] = useState("");
 
   async function onSubmit(e) {
     e.preventDefault();
     setErr("");
     setMsg("");
+    setWelcome("");
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, pass);
-      window.location.assign("/admin");
+      const { user } = await signInWithEmailAndPassword(auth, email, pass);
+
+      // Fetch profile to determine redirect destination
+      let role = null;
+      let displayName = user.displayName || email;
+      try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        if (snap.exists()) {
+          role = snap.data()?.role || null;
+          displayName = snap.data()?.name || displayName;
+        }
+      } catch {
+        // If profile fetch fails, default redirect
+      }
+
+      const dest = ADMIN_ROLES.includes(role) ? "/admin" : "/catalogo";
+      setWelcome(`¡Bienvenido, ${displayName}!`);
+      // Brief delay so the user sees the welcome message
+      setTimeout(() => history.push(dest), 800);
     } catch (e) {
       console.error(e);
       setErr(humanizeAuthError(e));
-    } finally {
       setLoading(false);
     }
   }
@@ -101,6 +124,11 @@ export default function Login() {
                 {err}
               </div>
             )}
+            {welcome && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+                {welcome} Redirigiendo…
+              </div>
+            )}
             {msg && (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                 {msg}
@@ -114,7 +142,8 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-400/40"
+                disabled={loading}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-400/40 disabled:opacity-60"
               />
             </div>
 
@@ -125,7 +154,8 @@ export default function Login() {
                 value={pass}
                 onChange={(e) => setPass(e.target.value)}
                 required
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-400/40"
+                disabled={loading}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-400/40 disabled:opacity-60"
               />
             </div>
 
@@ -139,7 +169,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={onForgot}
-                disabled={resetting}
+                disabled={resetting || loading}
                 className="text-sm font-medium text-sky-600 transition hover:text-sky-500 disabled:opacity-60"
               >
                 {resetting ? (
@@ -177,6 +207,7 @@ function humanizeAuthError(e) {
   if (code.includes("auth/invalid-email")) return "Email inválido.";
   if (code.includes("auth/user-not-found")) return "No existe un usuario con ese email.";
   if (code.includes("auth/wrong-password")) return "Contraseña incorrecta.";
+  if (code.includes("auth/invalid-credential")) return "Email o contraseña incorrectos.";
   if (code.includes("auth/too-many-requests")) return "Demasiados intentos, probá más tarde.";
   return "No pudimos iniciar sesión. Intentá de nuevo.";
 }

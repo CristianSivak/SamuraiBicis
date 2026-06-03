@@ -1,6 +1,6 @@
 // src/pages/auth/ResetPassword.jsx
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useHistory } from "react-router-dom";
 import {
   verifyPasswordResetCode,
   confirmPasswordReset,
@@ -10,6 +10,7 @@ import { BusyButtonContent, LoadingSpinner } from "../../components/ui/LoadingIn
 
 export default function ResetPassword() {
   const { search } = useLocation();
+  const history = useHistory();
   const params = new URLSearchParams(search);
   const mode = params.get("mode");
   const oobCode = params.get("oobCode");
@@ -21,6 +22,7 @@ export default function ResetPassword() {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [countdown, setCountdown] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -40,6 +42,17 @@ export default function ResetPassword() {
     })();
   }, [mode, oobCode]);
 
+  // Countdown and redirect after success
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown <= 0) {
+      history.push("/login");
+      return;
+    }
+    const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [countdown, history]);
+
   async function onSubmit(e) {
     e.preventDefault();
     setErr("");
@@ -55,9 +68,10 @@ export default function ResetPassword() {
     try {
       setSaving(true);
       await confirmPasswordReset(auth, oobCode, pass1);
-      setMsg("¡Listo! Tu contraseña fue actualizada. Ya podés iniciar sesión.");
+      setMsg("¡Listo! Tu contraseña fue actualizada.");
       setPass1("");
       setPass2("");
+      setCountdown(3);
     } catch {
       setErr("No se pudo actualizar la contraseña. Pedí un nuevo enlace.");
     } finally {
@@ -124,7 +138,12 @@ export default function ResetPassword() {
             )}
             {msg && (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-600">
-                {msg}
+                <p className="font-medium">{msg} Ya podés iniciar sesión.</p>
+                {countdown !== null && countdown > 0 && (
+                  <p className="mt-1 text-xs text-emerald-500">
+                    Redirigiendo al login en {countdown}s…
+                  </p>
+                )}
               </div>
             )}
 
@@ -135,7 +154,8 @@ export default function ResetPassword() {
                 value={pass1}
                 onChange={(e) => setPass1(e.target.value)}
                 required
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"
+                disabled={!!msg}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40 disabled:opacity-50"
               />
             </div>
 
@@ -146,16 +166,19 @@ export default function ResetPassword() {
                 value={pass2}
                 onChange={(e) => setPass2(e.target.value)}
                 required
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"
+                disabled={!!msg}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40 disabled:opacity-50"
               />
             </div>
 
-            <button
-              className="inline-flex min-w-[160px] items-center justify-center rounded-xl bg-gradient-to-r from-indigo-500 to-sky-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-200/50 transition focus:outline-none focus:ring-2 focus:ring-indigo-400/60 disabled:opacity-60"
-              disabled={saving}
-            >
-              <BusyButtonContent busy={saving} busyLabel="Guardando…" label="Guardar" />
-            </button>
+            {!msg && (
+              <button
+                className="inline-flex min-w-[160px] items-center justify-center rounded-xl bg-gradient-to-r from-indigo-500 to-sky-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-200/50 transition focus:outline-none focus:ring-2 focus:ring-indigo-400/60 disabled:opacity-60"
+                disabled={saving}
+              >
+                <BusyButtonContent busy={saving} busyLabel="Guardando…" label="Guardar" />
+              </button>
+            )}
           </form>
         </section>
       </div>

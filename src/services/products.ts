@@ -3,7 +3,7 @@ import {
   serverTimestamp, query, orderBy, limit, getDocs,
   where, startAfter, QueryDocumentSnapshot, DocumentData, onSnapshot
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage } from "../firebase"; // 👈 asegurate que exista src/firebase.ts|js con {db,storage}
 import { authReady } from "../authReady";
 
@@ -21,6 +21,7 @@ export type Product = {
   productTypeTitle?: string | null;
   active: boolean;
   imageUrl: string;
+  images?: string[];
   createdAt?: any; updatedAt?: any;
 };
 
@@ -119,6 +120,7 @@ export async function updateProduct(id: string, {
   productTypeTitle,
   active,
   imageFile,
+  images,
 }: {
   name?: string;
   sku?: string | number | null;
@@ -130,6 +132,7 @@ export async function updateProduct(id: string, {
   productTypeTitle?: string | null;
   active?: boolean;
   imageFile?: File | null;
+  images?: string[];
 }) {
   const patch: any = { updatedAt: serverTimestamp() };
   if (name !== undefined) { patch.name = name; patch.nameLower = normalize(name); }
@@ -157,6 +160,10 @@ export async function updateProduct(id: string, {
   }
   if (active !== undefined) patch.active = !!active;
   if (imageFile) { const url = await uploadProductImage(id, imageFile); patch.imageUrl = url; }
+  if (images !== undefined) {
+    patch.images = images;
+    if (images.length > 0) patch.imageUrl = images[0];
+  }
   await updateDoc(doc(db, "products", id), patch);
 }
 
@@ -201,6 +208,44 @@ export async function uploadProductImage(productId: string, file: File) {
 
   return await getDownloadURL(snap.ref);
 }
+export async function uploadProductImages(
+  productId: string,
+  files: File[],
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<string[]> {
+  const user = await authReady();
+  if (!user) throw new Error("No hay sesión activa. Iniciá sesión y volvé a intentar.");
+  await user.getIdToken(true);
+
+  return Promise.all(
+    files.map((file, i) => {
+      if (!/^image\//.test(file.type)) throw new Error(`Solo se permiten imágenes (${file.name})`);
+      if (file.size > 10 * 1024 * 1024) throw new Error(`Imagen > 10MB (${file.name})`);
+      const safeName = file.name.replace(/[^\w.-]+/g, "_");
+      const fileRef = ref(storage, `products/${productId}/${Date.now()}_${i}_${safeName}`);
+      return new Promise<string>((resolve, reject) => {
+        const task = uploadBytesResumable(fileRef, file, {
+          contentType: file.type || "application/octet-stream",
+          customMetadata: { uploadedBy: user.uid },
+        });
+        task.on(
+          "state_changed",
+          (snap) => onProgress?.(i, Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
+          reject,
+          () => getDownloadURL(task.snapshot.ref).then(resolve, reject)
+        );
+      });
+    })
+  );
+}
+
+export async function deleteProductImage(url: string): Promise<void> {
+  const match = url.match(/\/o\/(.+?)(\?|$)/);
+  if (!match) throw new Error("URL de Storage no válida");
+  const path = decodeURIComponent(match[1]);
+  await deleteObject(ref(storage, path));
+}
+
 // Listado con búsqueda por prefijo, filtros y paginación simple
 export async function listProducts({
   q = "", onlyActive = "all", category = "all", pageSize = 20,

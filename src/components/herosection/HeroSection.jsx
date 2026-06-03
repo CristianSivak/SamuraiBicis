@@ -6,23 +6,13 @@ const quickHighlights = [
     title: "Catálogo vivo",
     description: "Precios netos, múltiples listas y disponibilidad garantizada las 24 hs.",
   },
-  {
-    id: "brands",
-    title: "+40 marcas oficiales",
-    description: "Distribución directa con lanzamientos exclusivos y acuerdos comerciales.",
-  },
-  {
-    id: "support",
-    title: "Soporte dedicado",
-    description: "Consultores que acompañan tu operación y activan promociones a medida.",
-  },
 ];
 
 const contactHighlights = [
   {
     id: "email",
     label: "Contacto comercial",
-    title: "medinaleoariel@hotmail.com",
+    title: "Leonardomedina@samurai.ar",
     description: "Coordinamos activaciones y reposiciones a tu ritmo.",
   },
   {
@@ -36,8 +26,8 @@ const contactHighlights = [
 export default function HeroSection({
   onLogin,
   onSignup,
-  title = "Mayorista de bicipartes para comercios que quieren crecer",
-  subtitle = "Centralizá compras, stock y lanzamientos exclusivos con un ecosistema pensado para tu tienda.",
+  title = "Mayorista de bicicletas",
+  subtitle = "Crecemos junto a la bicicletería",
 }) {
   const PrimaryAction = onSignup ? (
     <button
