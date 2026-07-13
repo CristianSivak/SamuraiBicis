@@ -34,14 +34,14 @@ export default function HeroSection({
       onClick={onSignup}
       className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/50"
     >
-      Completar formulario
+      Volvete distribuidor
     </button>
   ) : (
     <Link
       to="/quiero-ser-cliente"
       className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/50"
     >
-      Completar formulario
+      Volvete distribuidor
     </Link>
   );
 
