@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Datos internos con información real de clientes/distribuidores (no subir al repo público)
+scripts/contabilium-depositos.json

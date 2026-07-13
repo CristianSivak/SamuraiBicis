@@ -4,6 +4,7 @@ const items = [
   { to: "/admin", label: "Dashboard", icon: DashboardIcon, exact: true },
   { to: "/admin/users", label: "Usuarios", icon: UsersIcon },
   { to: "/admin/products", label: "Productos", icon: BoxIcon },
+  { to: "/admin/stock-consignado", label: "Stock consignado", icon: BoxIcon },
   { to: "/admin/orders", label: "Órdenes", icon: ReceiptIcon },
   { to: "/admin/product-types", label: "Tipos de producto", icon: LayersIcon },
   { to: "/admin/customer-types", label: "Tipos de cliente", icon: TagIcon },

@@ -65,3 +65,27 @@ export async function getClientComprobantes(
 export async function getComprobanteDetail(id: number): Promise<ComprobanteDetalle> {
   return callFunction("getComprobanteDetail", { id });
 }
+
+export type DepositoStockItem = {
+  id: string;
+  name: string;
+  sku: string;
+  imageUrl: string;
+  stockActual: number;
+  stockDisponible: number;
+};
+
+export async function getMyDepositoStock(): Promise<{
+  depositoId: number;
+  depositoNombre: string | null;
+  items: DepositoStockItem[];
+}> {
+  return callFunction("getMyDepositoStock", {});
+}
+
+export async function getDepositoStockAdmin(depositoId: number): Promise<{
+  depositoId: number;
+  items: DepositoStockItem[];
+}> {
+  return callFunction("getDepositoStockAdmin", { depositoId });
+}

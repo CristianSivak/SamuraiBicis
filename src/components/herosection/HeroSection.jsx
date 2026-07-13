@@ -26,7 +26,7 @@ const contactHighlights = [
 export default function HeroSection({
   onLogin,
   onSignup,
-  title = "Mayorista de bicicletas",
+  title = "Fábrica de bicicletas",
   subtitle = "Crecemos junto a la bicicletería",
 }) {
   const PrimaryAction = onSignup ? (
@@ -130,7 +130,7 @@ export default function HeroSection({
               <div className="absolute -left-20 bottom-0 h-60 w-60 rounded-full bg-gradient-to-tr from-emerald-200/70 via-teal-200/50 to-transparent blur-3xl" aria-hidden="true" />
               <div className="relative rounded-[2.2rem] border border-slate-200 bg-white/80 p-8">
                 <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-sky-600">
-                  Alianzas mayoristas
+                  Generemos una alianza
                 </span>
                 <h3 className="mt-6 text-2xl font-semibold text-slate-900">
                   Operamos cerca de tu negocio

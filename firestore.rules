@@ -51,6 +51,14 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Datos internos (ej. mapeo de depósitos de Contabilium con nombres reales
+    // de distribuidores): solo lectura para usuarios staff, nunca escritura desde el cliente.
+    match /internalData/{id} {
+      allow read: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ["admin", "manager", "viewer"];
+      allow write: if false;
+    }
+
     // Todo lo demás cerrado
     match /{document=**} {
       allow read, write: if false;

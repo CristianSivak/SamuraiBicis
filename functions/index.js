@@ -5,7 +5,7 @@ const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { defineSecret } = require("firebase-functions/params");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const admin = require("firebase-admin");
-const { getAllConceptos, getClientById, searchClientByDoc, getComprobantesByClientId, getComprobanteById } = require("./contabiliumService");
+const { getAllConceptos, getClientById, searchClientByDoc, getComprobantesByClientId, getComprobanteById, getStockByDeposito } = require("./contabiliumService");
 
 admin.initializeApp();
 
@@ -694,6 +694,140 @@ exports.approveAndInviteUser = onRequest(
     } catch (err) {
       console.error(err);
       setCorsHeaders(req, res);
+      return res.status(500).json({ error: String(err) });
+    }
+  }
+);
+
+// Arma la lista final de stock de un depósito: el nombre y precio salen
+// catálogo de productos de Samurai (por sku). Solo se muestran productos
+// que ya existen en el catálogo, con su nombre e imagen tal cual están ahí.
+async function buildDepositoStockItems(db, email, apiKey, stockItems) {
+  const stockMap = {};
+  for (const item of stockItems) {
+    const code = (item.Codigo || "").trim();
+    if (code) stockMap[code] = {
+      stockActual: Number(item.StockActual || 0),
+      stockDisponible: Number(item.StockConReservas ?? item.StockActual ?? 0),
+    };
+  }
+
+  const productsSnap = await db.collection("products").where("active", "==", true).get();
+  const items = [];
+  for (const docSnap of productsSnap.docs) {
+    const p = docSnap.data();
+    const skuStr = (p.sku || "").toString().trim();
+    if (!skuStr || !(skuStr in stockMap)) continue;
+    const { stockActual, stockDisponible } = stockMap[skuStr];
+    if (stockActual <= 0 && stockDisponible <= 0) continue;
+    items.push({
+      id: docSnap.id,
+      name: p.name || "",
+      sku: skuStr,
+      imageUrl: p.imageUrl || (p.images && p.images[0]) || "",
+      stockActual,
+      stockDisponible,
+    });
+  }
+  return items;
+}
+
+// ─────────────────────────────────────────────────────────────
+// M7 — Stock consignado por depósito
+// Devuelve el stock real (Contabilium) del depósito asignado al
+// cliente autenticado, cruzado con el catálogo de productos por SKU.
+// Requiere: Authorization: Bearer <Firebase ID token>
+// ─────────────────────────────────────────────────────────────
+exports.getMyDepositoStock = onRequest(
+  { cors: false, secrets: [CONTABILIUM_EMAIL, CONTABILIUM_API_KEY] },
+  async (req, res) => {
+    setCorsHeaders(req, res);
+    if (req.method === "OPTIONS") return res.status(204).send("");
+    if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
+
+    const authHeader = req.headers.authorization || "";
+    const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "No autorizado" });
+
+    let uid;
+    try {
+      const decoded = await admin.auth().verifyIdToken(idToken);
+      uid = decoded.uid;
+    } catch {
+      return res.status(401).json({ error: "Token inválido" });
+    }
+
+    try {
+      const db = admin.firestore();
+      const userSnap = await db.doc(`users/${uid}`).get();
+      if (!userSnap.exists) return res.status(404).json({ error: "Usuario no encontrado" });
+
+      const { contabiliumDepositoId, contabiliumDepositoNombre } = userSnap.data();
+      if (!contabiliumDepositoId) {
+        return res.status(400).json({ error: "Usuario sin depósito consignado asignado" });
+      }
+
+      const email  = CONTABILIUM_EMAIL.value();
+      const apiKey = CONTABILIUM_API_KEY.value();
+      const stockItems = await getStockByDeposito(email, apiKey, contabiliumDepositoId);
+      const items = await buildDepositoStockItems(db, email, apiKey, stockItems);
+
+      return res.json({
+        depositoId: contabiliumDepositoId,
+        depositoNombre: contabiliumDepositoNombre || null,
+        items,
+      });
+    } catch (err) {
+      console.error("[contabilium] getMyDepositoStock error:", err);
+      return res.status(500).json({ error: String(err) });
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────
+// M7b — Stock consignado por depósito, consultado por un admin
+// (para ver el stock de cualquier cliente sin que él tenga que loguearse).
+// Requiere: Authorization: Bearer <Firebase ID token> de un usuario staff.
+// Body: { depositoId: number }
+// ─────────────────────────────────────────────────────────────
+exports.getDepositoStockAdmin = onRequest(
+  { cors: false, secrets: [CONTABILIUM_EMAIL, CONTABILIUM_API_KEY] },
+  async (req, res) => {
+    setCorsHeaders(req, res);
+    if (req.method === "OPTIONS") return res.status(204).send("");
+    if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
+
+    const authHeader = req.headers.authorization || "";
+    const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "No autorizado" });
+
+    let uid;
+    try {
+      const decoded = await admin.auth().verifyIdToken(idToken);
+      uid = decoded.uid;
+    } catch {
+      return res.status(401).json({ error: "Token inválido" });
+    }
+
+    try {
+      const db = admin.firestore();
+      const callerSnap = await db.doc(`users/${uid}`).get();
+      const staffRoles = ["admin", "manager", "viewer"];
+      if (!callerSnap.exists || !staffRoles.includes(callerSnap.data().role)) {
+        return res.status(403).json({ error: "Acceso denegado" });
+      }
+
+      const { depositoId } = req.body || {};
+      if (!depositoId) return res.status(400).json({ error: "depositoId requerido" });
+
+      const email  = CONTABILIUM_EMAIL.value();
+      const apiKey = CONTABILIUM_API_KEY.value();
+      const stockItems = await getStockByDeposito(email, apiKey, depositoId);
+      const items = await buildDepositoStockItems(db, email, apiKey, stockItems);
+
+      return res.json({ depositoId, items });
+    } catch (err) {
+      console.error("[contabilium] getDepositoStockAdmin error:", err);
       return res.status(500).json({ error: String(err) });
     }
   }

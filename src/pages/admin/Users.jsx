@@ -12,6 +12,8 @@ import { auth } from "../../firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { BusyButtonContent, LoadingOverlay } from "../../components/ui/LoadingIndicators";
 import { subscribeCustomerTypes } from "../../services/customerTypes";
+import { getContabiliumDepositos } from "../../services/contabiliumDepositos";
+import { getDepositoStockAdmin } from "../../services/comprobantes";
 
 const statusStyles = {
   activo: "border border-emerald-200 bg-emerald-50 text-emerald-600",
@@ -314,6 +316,11 @@ function UserModal({ open, onClose, onSubmit, initial, customerTypes }) {
   const [status, setStatus]           = useState(initial?.status || "activo");
   const [customerTypeId, setCustomerTypeId] = useState(initial?.customerTypeId || "");
   const [contabiliumId, setContabiliumId]   = useState(initial?.contabiliumId?.toString() || "");
+  const [depositoId, setDepositoId] = useState(initial?.contabiliumDepositoId?.toString() || "");
+  const [depositos, setDepositos] = useState([]);
+  const [stockLoading, setStockLoading] = useState(false);
+  const [stockError, setStockError] = useState("");
+  const [stockItems, setStockItems] = useState(null);
   const [contabiliumInfo, setContabiliumInfo] = useState(
     initial?.idListaPrecio != null
       ? { idListaPrecio: initial.idListaPrecio, condicionIva: initial.condicionIva }
@@ -324,19 +331,44 @@ function UserModal({ open, onClose, onSubmit, initial, customerTypes }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (!open) return;
+    getContabiliumDepositos()
+      .then(setDepositos)
+      .catch((e) => console.error("Error cargando depósitos de Contabilium:", e));
+  }, [open]);
+
+  useEffect(() => {
     setName(initial?.name || "");
     setEmail(initial?.email || "");
     setRole(initial?.role || "viewer");
     setStatus(initial?.status || "activo");
     setCustomerTypeId(initial?.customerTypeId || "");
     setContabiliumId(initial?.contabiliumId?.toString() || "");
+    setDepositoId(initial?.contabiliumDepositoId?.toString() || "");
     setContabiliumInfo(
       initial?.idListaPrecio != null
         ? { idListaPrecio: initial.idListaPrecio, condicionIva: initial.condicionIva }
         : null
     );
     setSyncError("");
+    setStockItems(null);
+    setStockError("");
   }, [initial, open]);
+
+  async function handleVerStock() {
+    if (!depositoId) return;
+    setStockLoading(true);
+    setStockError("");
+    setStockItems(null);
+    try {
+      const result = await getDepositoStockAdmin(Number(depositoId));
+      setStockItems(result.items);
+    } catch (e) {
+      setStockError(e.message || "Error al consultar el stock");
+    } finally {
+      setStockLoading(false);
+    }
+  }
 
   async function handleSyncContabilium() {
     if (!initial?.id) return;
@@ -380,6 +412,9 @@ function UserModal({ open, onClose, onSubmit, initial, customerTypes }) {
               status,
               customerTypeId:  customerTypeId || null,
               contabiliumId:   contabiliumId ? Number(contabiliumId) : null,
+              contabiliumDepositoId: depositoId ? Number(depositoId) : null,
+              contabiliumDepositoNombre:
+                (depositos.find((d) => String(d.id) === depositoId)?.nombre) || null,
             });
             setSaving(false);
           }}
@@ -470,6 +505,53 @@ function UserModal({ open, onClose, onSubmit, initial, customerTypes }) {
             {syncError && (
               <p className="text-xs text-rose-500">{syncError}</p>
             )}
+            <div className="space-y-1">
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Depósito consignado
+              </label>
+              <select
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
+                value={depositoId}
+                onChange={(e) => setDepositoId(e.target.value)}
+              >
+                <option value="">Sin depósito asignado</option>
+                {depositos.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.nombre}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-slate-500">
+                Si asignás un depósito, este usuario va a poder ver su stock consignado en el sitio.
+              </p>
+              {depositoId && (
+                <button
+                  type="button"
+                  disabled={stockLoading}
+                  onClick={handleVerStock}
+                  className="mt-1 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-2 text-xs font-semibold text-sky-600 transition hover:bg-sky-100 disabled:opacity-60"
+                >
+                  {stockLoading ? "Consultando…" : "Ver stock consignado"}
+                </button>
+              )}
+              {stockError && (
+                <p className="text-xs text-rose-500">{stockError}</p>
+              )}
+              {stockItems && (
+                stockItems.length === 0 ? (
+                  <p className="text-xs text-slate-500">No hay stock disponible en este depósito ahora mismo.</p>
+                ) : (
+                  <ul className="mt-1 max-h-48 space-y-1 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2">
+                    {stockItems.map((item) => (
+                      <li key={item.id} className="flex items-center justify-between gap-2 rounded-xl px-2 py-1.5 text-xs">
+                        <span className="text-slate-700">{item.name}</span>
+                        <span className="shrink-0 font-semibold text-emerald-600">{item.stockDisponible}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              )}
+            </div>
             {contabiliumInfo && (
               <div className="flex flex-wrap gap-2 text-xs">
                 <span className="rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-emerald-600 font-medium">

@@ -107,6 +107,7 @@ export default function Navbar({
               isAdminUser={isAdminUser}
               isClient={isClient}
               authLoading={authLoading}
+              profile={profile}
             />
           </div>
 
@@ -169,6 +170,11 @@ export default function Navbar({
                 <MobileLink to="/mis-pedidos" onClick={close} isTransparent={isTransparentNow} ringClass={ringColor}>
                   Mis comprobantes
                 </MobileLink>
+                {profile?.contabiliumDepositoId && (
+                  <MobileLink to="/mi-stock" onClick={close} isTransparent={isTransparentNow} ringClass={ringColor}>
+                    Mi stock
+                  </MobileLink>
+                )}
                 <MobileLink to="/mi-cuenta" onClick={close} isTransparent={isTransparentNow} ringClass={ringColor}>
                   Mi cuenta
                 </MobileLink>
@@ -271,7 +277,7 @@ function UserMenu({ user, profile, onLogout, outlineBtn, isTransparentNow }) {
   );
 }
 
-function PrimaryLinks({ onNavigate, linkInactive, linkActive, ringClass, isAdminUser, isClient, authLoading }) {
+function PrimaryLinks({ onNavigate, linkInactive, linkActive, ringClass, isAdminUser, isClient, authLoading, profile }) {
   const base =
     `text-sm font-medium transition rounded-lg px-3 py-2 focus:outline-none focus-visible:ring-2 ${ringClass}`;
   return (
@@ -287,6 +293,11 @@ function PrimaryLinks({ onNavigate, linkInactive, linkActive, ringClass, isAdmin
           <NavLink to="/mis-pedidos" onClick={onNavigate} className={base + " " + linkInactive} activeClassName={linkActive} role="menuitem">
             Mis comprobantes
           </NavLink>
+          {profile?.contabiliumDepositoId && (
+            <NavLink to="/mi-stock" onClick={onNavigate} className={base + " " + linkInactive} activeClassName={linkActive} role="menuitem">
+              Mi stock
+            </NavLink>
+          )}
           <NavLink to="/mi-cuenta" onClick={onNavigate} className={base + " " + linkInactive} activeClassName={linkActive} role="menuitem">
             Mi cuenta
           </NavLink>

@@ -9,15 +9,18 @@ async function getAccessToken(email, apiKey) {
   if (_token && Date.now() < _tokenExpiry) return _token;
   const body = new URLSearchParams({
     grant_type:    "client_credentials",
-    client_id:     email,
-    client_secret: apiKey,
+    client_id:     String(email || "").trim(),
+    client_secret: String(apiKey || "").trim(),
   });
   const res = await fetch(TOKEN_URL, {
     method:  "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body:    body.toString(),
   });
-  if (!res.ok) throw new Error(`Contabilium auth error ${res.status}`);
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Contabilium auth error ${res.status}: ${detail}`);
+  }
   const { access_token } = await res.json();
   _token = access_token;
   _tokenExpiry = Date.now() + 4 * 60 * 60 * 1000;
@@ -38,6 +41,25 @@ async function getAllConceptos(email, apiKey) {
     all.push(...Items);
     if (Items.length < PAGE_SIZE) break;
     page++;
+  }
+  return all;
+}
+
+// Trae todo el stock de un depósito puntual (paginado)
+async function getStockByDeposito(email, apiKey, depositoId) {
+  const token = await getAccessToken(email, apiKey);
+  const all = [];
+  let page = 0;
+  while (true) {
+    const res = await fetch(
+      `${API_BASE}/inventarios/getStockByDeposito?id=${depositoId}&page=${page}&pageSize=${PAGE_SIZE}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!res.ok) throw new Error(`Contabilium stock por depósito error ${res.status}`);
+    const { Items = [], TotalPage = 1 } = await res.json();
+    all.push(...Items);
+    page++;
+    if (page >= TotalPage || Items.length === 0) break;
   }
   return all;
 }
@@ -125,4 +147,4 @@ async function getComprobanteById(email, apiKey, id) {
   return res.json();
 }
 
-module.exports = { getAllConceptos, getClientById, searchClientByDoc, getComprobantesByClientId, getComprobanteById };
+module.exports = { getAllConceptos, getClientById, searchClientByDoc, getComprobantesByClientId, getComprobanteById, getStockByDeposito };

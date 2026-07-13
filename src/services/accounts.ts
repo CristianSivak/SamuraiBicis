@@ -24,6 +24,9 @@ export type Account = {
   idListaPrecio?:   number | null;
   condicionIva?:    string | null;
   contabiliumSync?: any;
+  // Depósito consignado (stock por distribuidor)
+  contabiliumDepositoId?:      number | null;
+  contabiliumDepositoNombre?:  string | null;
   kind: "client" | "staff";
   role: "client" | "viewer" | "manager" | "admin";
   status: "pending" | "activo" | "suspendido" | "rejected";
