@@ -27,7 +27,7 @@ export default function ValuePropositionsSection({
               Identidad Samurai
             </div>
             <h2 className="mt-6 text-3xl font-semibold sm:text-4xl">
-              Crecemos junto al mayorista
+              Crecemos junto a la bicicletería
             </h2>
             <p className="mt-4 max-w-xl text-base text-slate-600">
               Construimos una marca cercana y confiable que comparte objetivos con cada distribuidor. Nuestra propuesta une calidad accesible, logística ágil y acompañamiento permanente.
